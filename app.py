@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 from data.datos_prueba import cursos, alumnos
 
@@ -193,23 +194,23 @@ elif pagina == "👥 Alumnos":
     # LISTADO
     # ------------------------------------------
 
-    st.write("### 📋 Listado de alumnos")
+   if alumnos_filtrados:
 
-    if alumnos_filtrados:
+    datos_tabla = [
+        {
+            "Apellido": alumno["apellido"],
+            "Nombre": alumno["nombre"]
+        }
+        for alumno in alumnos_filtrados
+    ]
 
-        for alumno in alumnos_filtrados:
+    tabla_alumnos = pd.DataFrame(datos_tabla)
 
-            st.write(
-                f"**{alumno['apellido']}, {alumno['nombre']}**"
-            )
-
-    else:
-
-        st.warning(
-            "No se encontraron alumnos."
-        )
-
-    st.divider()
+    st.dataframe(
+        tabla_alumnos,
+        use_container_width=True,
+        hide_index=True
+    )
 
     # ------------------------------------------
     # FICHA DEL ALUMNO
