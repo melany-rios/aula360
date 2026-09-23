@@ -1,6 +1,6 @@
 import streamlit as st
 
-from data.datos_ficticios import cursos, alumnos
+from data.datos_prueba import cursos, alumnos
 
 
 # Configuración de la página
