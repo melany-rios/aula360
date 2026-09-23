@@ -144,9 +144,60 @@ elif pagina == "👥 Alumnos":
 
     st.divider()
 
-    if alumnos_curso:
+    # ------------------------------------------
+    # INFORMACIÓN GENERAL
+    # ------------------------------------------
 
-        for alumno in alumnos_curso:
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric(
+            "Total de alumnos",
+            len(alumnos_curso)
+        )
+
+    with col2:
+        st.metric(
+            "Curso",
+            curso_actual["curso"]
+        )
+
+    st.divider()
+
+    # ------------------------------------------
+    # BUSCADOR
+    # ------------------------------------------
+
+    st.write("### 🔎 Buscar alumno")
+
+    texto_busqueda = st.text_input(
+        "Ingresá nombre o apellido",
+        placeholder="Ejemplo: Gómez"
+    )
+
+    # Filtrar alumnos
+    alumnos_filtrados = alumnos_curso
+
+    if texto_busqueda:
+
+        texto_busqueda = texto_busqueda.lower()
+
+        alumnos_filtrados = [
+            alumno
+            for alumno in alumnos_curso
+            if texto_busqueda in alumno["nombre"].lower()
+            or texto_busqueda in alumno["apellido"].lower()
+        ]
+
+    # ------------------------------------------
+    # LISTADO
+    # ------------------------------------------
+
+    st.write("### 📋 Listado de alumnos")
+
+    if alumnos_filtrados:
+
+        for alumno in alumnos_filtrados:
 
             st.write(
                 f"**{alumno['apellido']}, {alumno['nombre']}**"
@@ -154,8 +205,81 @@ elif pagina == "👥 Alumnos":
 
     else:
 
+        st.warning(
+            "No se encontraron alumnos."
+        )
+
+    st.divider()
+
+    # ------------------------------------------
+    # FICHA DEL ALUMNO
+    # ------------------------------------------
+
+    st.write("### 👤 Ficha del alumno")
+
+    if alumnos_curso:
+
+        opciones_alumnos = [
+            f"{alumno['apellido']}, {alumno['nombre']}"
+            for alumno in alumnos_curso
+        ]
+
+        alumno_seleccionado = st.selectbox(
+            "Seleccionar alumno",
+            opciones_alumnos
+        )
+
+        # Buscar alumno
+        alumno_actual = next(
+            alumno
+            for alumno in alumnos_curso
+            if f"{alumno['apellido']}, {alumno['nombre']}"
+            == alumno_seleccionado
+        )
+
+        st.write(
+            f"## {alumno_actual['nombre']} "
+            f"{alumno_actual['apellido']}"
+        )
+
+        st.caption(
+            f"{curso_actual['curso']} — "
+            f"{curso_actual['materia']}"
+        )
+
+        st.divider()
+
+        # Indicadores del alumno
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric(
+                "Asistencia",
+                "—"
+            )
+
+        with col2:
+            st.metric(
+                "Promedio",
+                "—"
+            )
+
+        with col3:
+            st.metric(
+                "Trabajos",
+                "—"
+            )
+
+        with col4:
+            st.metric(
+                "Observaciones",
+                "—"
+            )
+
+    else:
+
         st.info(
-            "No hay alumnos registrados para este curso."
+            "No hay alumnos registrados."
         )
 
 
