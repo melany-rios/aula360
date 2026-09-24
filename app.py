@@ -194,23 +194,33 @@ elif pagina == "👥 Alumnos":
     # LISTADO
     # ------------------------------------------
 
-   if alumnos_filtrados:
+    st.write("### 📋 Listado de alumnos")
 
-    datos_tabla = [
-        {
-            "Apellido": alumno["apellido"],
-            "Nombre": alumno["nombre"]
-        }
-        for alumno in alumnos_filtrados
-    ]
+    if alumnos_filtrados:
 
-    tabla_alumnos = pd.DataFrame(datos_tabla)
+        datos_tabla = [
+            {
+                "Apellido": alumno["apellido"],
+                "Nombre": alumno["nombre"]
+            }
+            for alumno in alumnos_filtrados
+        ]
 
-    st.dataframe(
-        tabla_alumnos,
-        use_container_width=True,
-        hide_index=True
-    )
+        tabla_alumnos = pd.DataFrame(datos_tabla)
+
+        st.dataframe(
+            tabla_alumnos,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    else:
+
+        st.warning(
+            "No se encontraron alumnos."
+        )
+
+    st.divider()
 
     # ------------------------------------------
     # FICHA DEL ALUMNO
@@ -297,7 +307,7 @@ elif pagina == "📅 Asistencia":
     )
 
     st.info(
-        "El módulo de asistencia se desarrollará en el próximo paso."
+        "El módulo de asistencia se desarrollará próximamente."
     )
 
 
