@@ -1,122 +1,222 @@
 # ==========================================
-# DATOS FICTICIOS - AULA360
+# DATOS DE PRUEBA - AULA360
 # ==========================================
 
-# Cursos y materias
-cursos = [
+
+# ==========================================
+# MATERIAS
+# ==========================================
+
+materias = [
     {
         "id": 1,
-        "curso": "5° 1°",
-        "materia": "Sistemas Informáticos"
+        "nombre": "Sistemas Informáticos"
     },
     {
         "id": 2,
-        "curso": "5° 1°",
-        "materia": "Software II"
+        "nombre": "Software III"
     },
-        {
+    {
         "id": 3,
-        "curso": "4° 1°",
-        "materia": "Software I"
+        "nombre": "Software II"
     },
-        {
+    {
         "id": 4,
-        "curso": "4° 2°",
-        "materia": "Hardware II"
+        "nombre": "Hardware"
     }
 ]
 
 
-# Alumnos ficticios
+# ==========================================
+# CURSOS
+# ==========================================
+
+cursos = [
+    {
+        "id": 1,
+        "nombre": "5° 1°"
+    },
+    {
+        "id": 2,
+        "nombre": "4° 1°"
+    },
+    {
+        "id": 3,
+        "nombre": "4° 2°"
+    }
+]
+
+
+# ==========================================
+# ASIGNACIONES DE MATERIAS
+# ==========================================
+
+# Relaciona un curso con una materia.
+# Una misma materia podría existir en diferentes cursos.
+
+asignaciones = [
+    {
+        "id": 1,
+        "curso_id": 1,
+        "materia_id": 1
+    },
+    {
+        "id": 2,
+        "curso_id": 1,
+        "materia_id": 2
+    },
+    {
+        "id": 3,
+        "curso_id": 2,
+        "materia_id": 3
+    },
+    {
+        "id": 4,
+        "curso_id": 3,
+        "materia_id": 4
+    }
+]
+
+
+# ==========================================
+# ALUMNOS
+# ==========================================
+
 alumnos = [
     {
         "id": 1,
         "nombre": "Sofía",
         "apellido": "Gómez",
-        "curso_id": 1
+        "asignacion_id": 1
     },
     {
         "id": 2,
         "nombre": "Mateo",
         "apellido": "López",
-        "curso_id": 1
+        "asignacion_id": 1
     },
     {
         "id": 3,
         "nombre": "Valentina",
         "apellido": "Pérez",
-        "curso_id": 1
+        "asignacion_id": 1
     },
     {
         "id": 4,
         "nombre": "Tomás",
         "apellido": "Rodríguez",
-        "curso_id": 1
+        "asignacion_id": 1
     },
     {
         "id": 5,
         "nombre": "Camila",
         "apellido": "Fernández",
-        "curso_id": 2
+        "asignacion_id": 2
     },
     {
         "id": 6,
         "nombre": "Lucas",
         "apellido": "Martínez",
-        "curso_id": 2
+        "asignacion_id": 2
     },
     {
         "id": 7,
         "nombre": "Martina",
         "apellido": "Díaz",
-        "curso_id": 2
+        "asignacion_id": 2
     },
     {
         "id": 8,
         "nombre": "Joaquín",
         "apellido": "Sánchez",
-        "curso_id": 3
+        "asignacion_id": 3
     },
     {
         "id": 9,
         "nombre": "Agustina",
         "apellido": "Romero",
-        "curso_id": 3
+        "asignacion_id": 3
     },
     {
         "id": 10,
         "nombre": "Franco",
         "apellido": "Torres",
-        "curso_id": 4
+        "asignacion_id": 4
     },
     {
         "id": 11,
         "nombre": "Micaela",
         "apellido": "Ruiz",
-        "curso_id": 4
+        "asignacion_id": 4
+    }
+]
+
+
+# ==========================================
+# ASISTENCIA DE PRUEBA
+# ==========================================
+
+# Estados posibles:
+#
+# presente
+# ausente
+# justificado
+
+asistencias = [
+    {
+        "id": 1,
+        "alumno_id": 1,
+        "asignacion_id": 1,
+        "fecha": "2026-09-02",
+        "estado": "presente"
     },
     {
-        "id": 12,
-        "nombre": "Nicolás",
-        "apellido": "Acosta",
-        "curso_id": 4
+        "id": 2,
+        "alumno_id": 2,
+        "asignacion_id": 1,
+        "fecha": "2026-09-02",
+        "estado": "presente"
     },
     {
-        "id": 13,
-        "nombre": "Julieta",
-        "apellido": "Vega",
-        "curso_id": 4
+        "id": 3,
+        "alumno_id": 3,
+        "asignacion_id": 1,
+        "fecha": "2026-09-02",
+        "estado": "ausente"
     },
     {
-        "id": 14,
-        "nombre": "Benjamín",
-        "apellido": "Navarro",
-        "curso_id": 4
+        "id": 4,
+        "alumno_id": 4,
+        "asignacion_id": 1,
+        "fecha": "2026-09-02",
+        "estado": "justificado"
     },
     {
-        "id": 15,
-        "nombre": "Renata",
-        "apellido": "Castro",
-        "curso_id": 4
+        "id": 5,
+        "alumno_id": 1,
+        "asignacion_id": 1,
+        "fecha": "2026-09-09",
+        "estado": "presente"
+    },
+    {
+        "id": 6,
+        "alumno_id": 2,
+        "asignacion_id": 1,
+        "fecha": "2026-09-09",
+        "estado": "ausente"
+    },
+    {
+        "id": 7,
+        "alumno_id": 3,
+        "asignacion_id": 1,
+        "fecha": "2026-09-09",
+        "estado": "presente"
+    },
+    {
+        "id": 8,
+        "alumno_id": 4,
+        "asignacion_id": 1,
+        "fecha": "2026-09-09",
+        "estado": "presente"
     }
 ]
