@@ -1,7 +1,14 @@
 import streamlit as st
 import pandas as pd
+from datetime import date
 
-from data.datos_prueba import cursos, alumnos
+from data.datos_prueba import (
+    materias,
+    cursos,
+    asignaciones,
+    alumnos,
+    asistencias
+)
 
 
 # ==========================================
@@ -13,6 +20,106 @@ st.set_page_config(
     page_icon="🎓",
     layout="wide"
 )
+
+
+# ==========================================
+# INICIALIZAR DATOS EN SESSION STATE
+# ==========================================
+
+if "alumnos" not in st.session_state:
+    st.session_state.alumnos = alumnos.copy()
+
+if "asistencias" not in st.session_state:
+    st.session_state.asistencias = asistencias.copy()
+
+if "materias" not in st.session_state:
+    st.session_state.materias = materias.copy()
+
+if "cursos" not in st.session_state:
+    st.session_state.cursos = cursos.copy()
+
+if "asignaciones" not in st.session_state:
+    st.session_state.asignaciones = asignaciones.copy()
+
+
+# ==========================================
+# FUNCIONES AUXILIARES
+# ==========================================
+
+def obtener_curso(asignacion_id):
+
+    asignacion = next(
+        asignacion
+        for asignacion in st.session_state.asignaciones
+        if asignacion["id"] == asignacion_id
+    )
+
+    curso = next(
+        curso
+        for curso in st.session_state.cursos
+        if curso["id"] == asignacion["curso_id"]
+    )
+
+    return curso
+
+
+def obtener_materia(asignacion_id):
+
+    asignacion = next(
+        asignacion
+        for asignacion in st.session_state.asignaciones
+        if asignacion["id"] == asignacion_id
+    )
+
+    materia = next(
+        materia
+        for materia in st.session_state.materias
+        if materia["id"] == asignacion["materia_id"]
+    )
+
+    return materia
+
+
+def obtener_alumnos_asignacion(asignacion_id):
+
+    return [
+        alumno
+        for alumno in st.session_state.alumnos
+        if alumno["asignacion_id"] == asignacion_id
+    ]
+
+
+def calcular_porcentaje_asistencia(alumno_id, asignacion_id):
+
+    registros = [
+        registro
+        for registro in st.session_state.asistencias
+        if registro["alumno_id"] == alumno_id
+        and registro["asignacion_id"] == asignacion_id
+    ]
+
+    if not registros:
+        return None
+
+    presentes = sum(
+        1
+        for registro in registros
+        if registro["estado"] == "presente"
+    )
+
+    justificados = sum(
+        1
+        for registro in registros
+        if registro["estado"] == "justificado"
+    )
+
+    # Los presentes y justificados cuentan como asistencia
+    porcentaje = (
+        (presentes + justificados)
+        / len(registros)
+    ) * 100
+
+    return round(porcentaje, 1)
 
 
 # ==========================================
@@ -45,38 +152,42 @@ st.sidebar.divider()
 
 st.sidebar.subheader("Curso y materia")
 
-opciones_cursos = [
-    f"{curso['curso']} — {curso['materia']}"
-    for curso in cursos
-]
+opciones_asignaciones = {}
 
-curso_seleccionado = st.sidebar.selectbox(
+for asignacion in st.session_state.asignaciones:
+
+    curso = obtener_curso(asignacion["id"])
+    materia = obtener_materia(asignacion["id"])
+
+    texto = f"{curso['nombre']} — {materia['nombre']}"
+
+    opciones_asignaciones[texto] = asignacion["id"]
+
+
+asignacion_seleccionada = st.sidebar.selectbox(
     "Seleccionar",
-    opciones_cursos
+    list(opciones_asignaciones.keys())
 )
 
-
-# Buscar el curso seleccionado
-curso_actual = next(
-    curso
-    for curso in cursos
-    if f"{curso['curso']} — {curso['materia']}" == curso_seleccionado
-)
-
-
-# ==========================================
-# ALUMNOS DEL CURSO SELECCIONADO
-# ==========================================
-
-alumnos_curso = [
-    alumno
-    for alumno in alumnos
-    if alumno["curso_id"] == curso_actual["id"]
+asignacion_actual_id = opciones_asignaciones[
+    asignacion_seleccionada
 ]
 
+curso_actual = obtener_curso(
+    asignacion_actual_id
+)
+
+materia_actual = obtener_materia(
+    asignacion_actual_id
+)
+
+alumnos_curso = obtener_alumnos_asignacion(
+    asignacion_actual_id
+)
+
 
 # ==========================================
-# PÁGINA PRINCIPAL
+# INICIO
 # ==========================================
 
 if pagina == "🏠 Inicio":
@@ -87,14 +198,14 @@ if pagina == "🏠 Inicio":
     st.divider()
 
     st.write(
-        f"### {curso_actual['curso']} — {curso_actual['materia']}"
+        f"### {curso_actual['nombre']} — "
+        f"{materia_actual['nombre']}"
     )
 
     st.write(
         "Seleccioná una sección del menú para comenzar."
     )
 
-    # Indicadores
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -140,14 +251,11 @@ elif pagina == "👥 Alumnos":
     st.title("👥 Alumnos")
 
     st.subheader(
-        f"{curso_actual['curso']} — {curso_actual['materia']}"
+        f"{curso_actual['nombre']} — "
+        f"{materia_actual['nombre']}"
     )
 
     st.divider()
-
-    # ------------------------------------------
-    # INFORMACIÓN GENERAL
-    # ------------------------------------------
 
     col1, col2 = st.columns(2)
 
@@ -159,9 +267,61 @@ elif pagina == "👥 Alumnos":
 
     with col2:
         st.metric(
-            "Curso",
-            curso_actual["curso"]
+            "Materia",
+            materia_actual["nombre"]
         )
+
+    st.divider()
+
+    # ------------------------------------------
+    # AGREGAR ALUMNO
+    # ------------------------------------------
+
+    with st.expander("➕ Agregar alumno"):
+
+        with st.form("form_agregar_alumno"):
+
+            nombre = st.text_input("Nombre")
+
+            apellido = st.text_input("Apellido")
+
+            guardar = st.form_submit_button(
+                "Agregar alumno"
+            )
+
+            if guardar:
+
+                if nombre.strip() and apellido.strip():
+
+                    ids = [
+                        alumno["id"]
+                        for alumno in st.session_state.alumnos
+                    ]
+
+                    nuevo_id = max(ids, default=0) + 1
+
+                    nuevo_alumno = {
+                        "id": nuevo_id,
+                        "nombre": nombre.strip(),
+                        "apellido": apellido.strip(),
+                        "asignacion_id": asignacion_actual_id
+                    }
+
+                    st.session_state.alumnos.append(
+                        nuevo_alumno
+                    )
+
+                    st.success(
+                        "Alumno agregado correctamente."
+                    )
+
+                    st.rerun()
+
+                else:
+
+                    st.warning(
+                        "Completá nombre y apellido."
+                    )
 
     st.divider()
 
@@ -176,7 +336,6 @@ elif pagina == "👥 Alumnos":
         placeholder="Ejemplo: Gómez"
     )
 
-    # Filtrar alumnos
     alumnos_filtrados = alumnos_curso
 
     if texto_busqueda:
@@ -200,6 +359,7 @@ elif pagina == "👥 Alumnos":
 
         datos_tabla = [
             {
+                "ID": alumno["id"],
                 "Apellido": alumno["apellido"],
                 "Nombre": alumno["nombre"]
             }
@@ -223,140 +383,385 @@ elif pagina == "👥 Alumnos":
     st.divider()
 
     # ------------------------------------------
-    # FICHA DEL ALUMNO
+    # MODIFICAR / ELIMINAR
     # ------------------------------------------
 
-    st.write("### 👤 Ficha del alumno")
+    st.write("### ⚙️ Administrar alumno")
 
     if alumnos_curso:
 
-        opciones_alumnos = [
-            f"{alumno['apellido']}, {alumno['nombre']}"
+        opciones_alumnos = {
+            f"{alumno['apellido']}, {alumno['nombre']}": alumno["id"]
             for alumno in alumnos_curso
-        ]
+        }
 
         alumno_seleccionado = st.selectbox(
             "Seleccionar alumno",
-            opciones_alumnos
+            list(opciones_alumnos.keys()),
+            key="alumno_admin"
         )
 
-        # Buscar alumno
+        alumno_id = opciones_alumnos[
+            alumno_seleccionado
+        ]
+
         alumno_actual = next(
             alumno
-            for alumno in alumnos_curso
-            if f"{alumno['apellido']}, {alumno['nombre']}"
-            == alumno_seleccionado
+            for alumno in st.session_state.alumnos
+            if alumno["id"] == alumno_id
         )
 
-        st.write(
-            f"## {alumno_actual['nombre']} "
-            f"{alumno_actual['apellido']}"
-        )
+        col1, col2 = st.columns(2)
 
-        st.caption(
-            f"{curso_actual['curso']} — "
-            f"{curso_actual['materia']}"
+        # --------------------------------------
+        # MODIFICAR
+        # --------------------------------------
+
+        with col1:
+
+            st.write("#### ✏️ Modificar")
+
+            with st.form("form_modificar_alumno"):
+
+                nuevo_nombre = st.text_input(
+                    "Nombre",
+                    value=alumno_actual["nombre"]
+                )
+
+                nuevo_apellido = st.text_input(
+                    "Apellido",
+                    value=alumno_actual["apellido"]
+                )
+
+                modificar = st.form_submit_button(
+                    "Guardar cambios"
+                )
+
+                if modificar:
+
+                    if (
+                        nuevo_nombre.strip()
+                        and nuevo_apellido.strip()
+                    ):
+
+                        alumno_actual["nombre"] = (
+                            nuevo_nombre.strip()
+                        )
+
+                        alumno_actual["apellido"] = (
+                            nuevo_apellido.strip()
+                        )
+
+                        st.success(
+                            "Datos modificados correctamente."
+                        )
+
+                        st.rerun()
+
+                    else:
+
+                        st.warning(
+                            "Completá nombre y apellido."
+                        )
+
+        # --------------------------------------
+        # ELIMINAR
+        # --------------------------------------
+
+        with col2:
+
+            st.write("#### 🗑️ Eliminar")
+
+            st.warning(
+                "Esta acción eliminará al alumno "
+                "del listado de esta materia."
+            )
+
+            confirmar = st.checkbox(
+                "Confirmo que quiero eliminar este alumno",
+                key="confirmar_eliminar"
+            )
+
+            if st.button(
+                "Eliminar alumno",
+                type="secondary"
+            ):
+
+                if confirmar:
+
+                    st.session_state.alumnos = [
+                        alumno
+                        for alumno in st.session_state.alumnos
+                        if alumno["id"] != alumno_id
+                    ]
+
+                    # También eliminamos sus asistencias
+                    st.session_state.asistencias = [
+                        registro
+                        for registro in st.session_state.asistencias
+                        if registro["alumno_id"] != alumno_id
+                    ]
+
+                    st.success(
+                        "Alumno eliminado correctamente."
+                    )
+
+                    st.rerun()
+
+                else:
+
+                    st.warning(
+                        "Confirmá la eliminación."
+                    )
+
+else:
+
+    # ==========================================
+    # ASISTENCIA
+    # ==========================================
+
+    if pagina == "📅 Asistencia":
+
+        st.title("📅 Asistencia")
+
+        st.subheader(
+            f"{curso_actual['nombre']} — "
+            f"{materia_actual['nombre']}"
         )
 
         st.divider()
 
-        # Indicadores del alumno
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
-            st.metric(
-                "Asistencia",
-                "—"
-            )
-
-        with col2:
-            st.metric(
-                "Promedio",
-                "—"
-            )
-
-        with col3:
-            st.metric(
-                "Trabajos",
-                "—"
-            )
-
-        with col4:
-            st.metric(
-                "Observaciones",
-                "—"
-            )
-
-    else:
-
-        st.info(
-            "No hay alumnos registrados."
+        fecha_asistencia = st.date_input(
+            "Fecha",
+            value=date.today()
         )
 
+        st.write("### Registrar asistencia")
 
-# ==========================================
-# ASISTENCIA
-# ==========================================
+        if alumnos_curso:
 
-elif pagina == "📅 Asistencia":
+            estados = [
+                "Presente",
+                "Ausente",
+                "Justificado"
+            ]
 
-    st.title("📅 Asistencia")
+            registros_asistencia = []
 
-    st.subheader(
-        f"{curso_actual['curso']} — {curso_actual['materia']}"
-    )
+            for alumno in alumnos_curso:
 
-    st.info(
-        "El módulo de asistencia se desarrollará próximamente."
-    )
+                estado_actual = "Presente"
 
+                registros_existentes = [
+                    registro
+                    for registro in st.session_state.asistencias
+                    if registro["alumno_id"] == alumno["id"]
+                    and registro["asignacion_id"] == asignacion_actual_id
+                    and registro["fecha"] == str(fecha_asistencia)
+                ]
 
-# ==========================================
-# CALIFICACIONES
-# ==========================================
+                if registros_existentes:
 
-elif pagina == "📝 Calificaciones":
+                    estado_guardado = registros_existentes[0]["estado"]
 
-    st.title("📝 Calificaciones")
+                    if estado_guardado == "ausente":
+                        estado_actual = "Ausente"
 
-    st.subheader(
-        f"{curso_actual['curso']} — {curso_actual['materia']}"
-    )
+                    elif estado_guardado == "justificado":
+                        estado_actual = "Justificado"
 
-    st.info(
-        "El módulo de calificaciones se desarrollará próximamente."
-    )
+                registros_asistencia.append(
+                    {
+                        "alumno": alumno,
+                        "estado": estado_actual
+                    }
+                )
 
+            with st.form("form_asistencia"):
 
-# ==========================================
-# OBSERVACIONES
-# ==========================================
+                nuevos_estados = {}
 
-elif pagina == "📋 Observaciones":
+                for registro in registros_asistencia:
 
-    st.title("📋 Observaciones")
+                    alumno = registro["alumno"]
 
-    st.subheader(
-        f"{curso_actual['curso']} — {curso_actual['materia']}"
-    )
+                    nuevos_estados[alumno["id"]] = st.selectbox(
+                        alumno["apellido"] + ", "
+                        + alumno["nombre"],
+                        estados,
+                        index=estados.index(
+                            registro["estado"]
+                        ),
+                        key=f"asistencia_{alumno['id']}"
+                    )
 
-    st.info(
-        "El módulo de observaciones se desarrollará próximamente."
-    )
+                guardar_asistencia = st.form_submit_button(
+                    "💾 Guardar asistencia"
+                )
 
+                if guardar_asistencia:
 
-# ==========================================
-# ESTADÍSTICAS
-# ==========================================
+                    for alumno in alumnos_curso:
 
-elif pagina == "📊 Estadísticas":
+                        estado_texto = nuevos_estados[
+                            alumno["id"]
+                        ]
 
-    st.title("📊 Estadísticas")
+                        if estado_texto == "Presente":
+                            estado = "presente"
 
-    st.subheader(
-        f"{curso_actual['curso']} — {curso_actual['materia']}"
-    )
+                        elif estado_texto == "Ausente":
+                            estado = "ausente"
 
-    st.info(
-        "El módulo de estadísticas se desarrollará próximamente."
-    )
+                        else:
+                            estado = "justificado"
+
+                        # Buscar registro existente
+                        registro_existente = next(
+                            (
+                                registro
+                                for registro
+                                in st.session_state.asistencias
+                                if registro["alumno_id"]
+                                == alumno["id"]
+                                and registro["asignacion_id"]
+                                == asignacion_actual_id
+                                and registro["fecha"]
+                                == str(fecha_asistencia)
+                            ),
+                            None
+                        )
+
+                        if registro_existente:
+
+                            registro_existente["estado"] = estado
+
+                        else:
+
+                            ids = [
+                                registro["id"]
+                                for registro
+                                in st.session_state.asistencias
+                            ]
+
+                            nuevo_id = max(
+                                ids,
+                                default=0
+                            ) + 1
+
+                            st.session_state.asistencias.append(
+                                {
+                                    "id": nuevo_id,
+                                    "alumno_id": alumno["id"],
+                                    "asignacion_id": asignacion_actual_id,
+                                    "fecha": str(fecha_asistencia),
+                                    "estado": estado
+                                }
+                            )
+
+                    st.success(
+                        "Asistencia guardada correctamente."
+                    )
+
+                    st.rerun()
+
+            st.divider()
+
+            # --------------------------------------
+            # PORCENTAJES
+            # --------------------------------------
+
+            st.write("### 📊 Porcentaje de asistencia")
+
+            datos_asistencia = []
+
+            for alumno in alumnos_curso:
+
+                porcentaje = calcular_porcentaje_asistencia(
+                    alumno["id"],
+                    asignacion_actual_id
+                )
+
+                if porcentaje is None:
+                    porcentaje_texto = "Sin registros"
+                else:
+                    porcentaje_texto = f"{porcentaje}%"
+
+                datos_asistencia.append(
+                    {
+                        "Apellido": alumno["apellido"],
+                        "Nombre": alumno["nombre"],
+                        "Asistencia": porcentaje_texto
+                    }
+                )
+
+            tabla_asistencia = pd.DataFrame(
+                datos_asistencia
+            )
+
+            st.dataframe(
+                tabla_asistencia,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            st.info(
+                "No hay alumnos registrados "
+                "para esta materia."
+            )
+
+    # ==========================================
+    # CALIFICACIONES
+    # ==========================================
+
+    elif pagina == "📝 Calificaciones":
+
+        st.title("📝 Calificaciones")
+
+        st.subheader(
+            f"{curso_actual['nombre']} — "
+            f"{materia_actual['nombre']}"
+        )
+
+        st.info(
+            "El módulo de calificaciones "
+            "se desarrollará próximamente."
+        )
+
+    # ==========================================
+    # OBSERVACIONES
+    # ==========================================
+
+    elif pagina == "📋 Observaciones":
+
+        st.title("📋 Observaciones")
+
+        st.subheader(
+            f"{curso_actual['nombre']} — "
+            f"{materia_actual['nombre']}"
+        )
+
+        st.info(
+            "El módulo de observaciones "
+            "se desarrollará próximamente."
+        )
+
+    # ==========================================
+    # ESTADÍSTICAS
+    # ==========================================
+
+    elif pagina == "📊 Estadísticas":
+
+        st.title("📊 Estadísticas")
+
+        st.subheader(
+            f"{curso_actual['nombre']} — "
+            f"{materia_actual['nombre']}"
+        )
+
+        st.info(
+            "El módulo de estadísticas "
+            "se desarrollará próximamente."
+        )
