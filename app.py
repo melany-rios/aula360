@@ -1,8 +1,15 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+import calendar
+from datetime import date, datetime, time
 
-from data.datos_prueba import materias, cursos, asignaciones, alumnos, asistencias
+from data.datos_prueba import (
+    materias,
+    cursos,
+    asignaciones,
+    alumnos,
+    asistencias
+)
 
 
 # ============================================================
@@ -47,6 +54,15 @@ if "eventos_calendario" not in st.session_state:
 if "horarios" not in st.session_state:
     st.session_state.horarios = []
 
+if "mes_calendario" not in st.session_state:
+    st.session_state.mes_calendario = date.today().month
+
+if "anio_calendario" not in st.session_state:
+    st.session_state.anio_calendario = date.today().year
+
+if "fecha_calendario_seleccionada" not in st.session_state:
+    st.session_state.fecha_calendario_seleccionada = date.today()
+
 
 # ============================================================
 # FUNCIONES GENERALES
@@ -77,9 +93,16 @@ def obtener_nombre_materia(materia_id):
 
 def obtener_nombre_asignacion(asignacion_id):
     for asignacion in st.session_state.asignaciones:
+
         if asignacion["id"] == asignacion_id:
-            curso = obtener_nombre_curso(asignacion["curso_id"])
-            materia = obtener_nombre_materia(asignacion["materia_id"])
+
+            curso = obtener_nombre_curso(
+                asignacion["curso_id"]
+            )
+
+            materia = obtener_nombre_materia(
+                asignacion["materia_id"]
+            )
 
             return f"{curso} - {materia}"
 
@@ -94,12 +117,17 @@ def obtener_alumnos_asignacion(asignacion_id):
     ]
 
 
-def calcular_porcentaje_asistencia(alumno_id, asignacion_id):
+def calcular_porcentaje_asistencia(
+    alumno_id,
+    asignacion_id
+):
     registros = [
         registro
         for registro in st.session_state.asistencias
-        if registro["alumno_id"] == alumno_id
-        and registro["asignacion_id"] == asignacion_id
+        if (
+            registro["alumno_id"] == alumno_id
+            and registro["asignacion_id"] == asignacion_id
+        )
     ]
 
     if not registros:
@@ -108,16 +136,27 @@ def calcular_porcentaje_asistencia(alumno_id, asignacion_id):
     presentes = sum(
         1
         for registro in registros
-        if registro["estado"] in ["presente", "justificado"]
+        if registro["estado"] in [
+            "presente",
+            "justificado"
+        ]
     )
 
-    return round((presentes / len(registros)) * 100, 1)
+    return round(
+        (presentes / len(registros)) * 100,
+        1
+    )
 
 
-def obtener_asistencia(alumno_id, asignacion_id, fecha):
+def obtener_asistencia(
+    alumno_id,
+    asignacion_id,
+    fecha
+):
     fecha_texto = fecha.isoformat()
 
     for registro in st.session_state.asistencias:
+
         if (
             registro["alumno_id"] == alumno_id
             and registro["asignacion_id"] == asignacion_id
@@ -128,21 +167,30 @@ def obtener_asistencia(alumno_id, asignacion_id, fecha):
     return None
 
 
-def guardar_asistencia(alumno_id, asignacion_id, fecha, estado):
+def guardar_asistencia(
+    alumno_id,
+    asignacion_id,
+    fecha,
+    estado
+):
     fecha_texto = fecha.isoformat()
 
     for registro in st.session_state.asistencias:
+
         if (
             registro["alumno_id"] == alumno_id
             and registro["asignacion_id"] == asignacion_id
             and registro["fecha"] == fecha_texto
         ):
+
             registro["estado"] = estado
             return
 
     st.session_state.asistencias.append(
         {
-            "id": siguiente_id(st.session_state.asistencias),
+            "id": siguiente_id(
+                st.session_state.asistencias
+            ),
             "alumno_id": alumno_id,
             "asignacion_id": asignacion_id,
             "fecha": fecha_texto,
@@ -151,11 +199,15 @@ def guardar_asistencia(alumno_id, asignacion_id, fecha, estado):
     )
 
 
-def eventos_para_fecha(fecha, asignacion_id=None):
+def eventos_para_fecha(
+    fecha,
+    asignacion_id=None
+):
     fecha_texto = fecha.isoformat()
     resultado = []
 
     for evento in st.session_state.eventos_calendario:
+
         if evento["fecha"] != fecha_texto:
             continue
 
@@ -171,16 +223,34 @@ def eventos_para_fecha(fecha, asignacion_id=None):
     return resultado
 
 
-def horarios_para_asignacion_dia(asignacion_id, dia):
+def todos_los_eventos_para_fecha(fecha):
+    fecha_texto = fecha.isoformat()
+
     return [
-        horario
-        for horario in st.session_state.horarios
-        if horario["asignacion_id"] == asignacion_id
-        and horario["dia"] == dia
+        evento
+        for evento in st.session_state.eventos_calendario
+        if evento["fecha"] == fecha_texto
     ]
 
 
-def hay_horario_en_dia(asignacion_id, fecha):
+def horarios_para_asignacion_dia(
+    asignacion_id,
+    dia
+):
+    return [
+        horario
+        for horario in st.session_state.horarios
+        if (
+            horario["asignacion_id"] == asignacion_id
+            and horario["dia"] == dia
+        )
+    ]
+
+
+def hay_horario_en_dia(
+    asignacion_id,
+    fecha
+):
     dias = [
         "Lunes",
         "Martes",
@@ -204,7 +274,9 @@ def nota_cuatrimestre(
     asignacion_id,
     cuatrimestre
 ):
-    for registro in st.session_state.calificaciones_cuatrimestre:
+    for registro in (
+        st.session_state.calificaciones_cuatrimestre
+    ):
 
         if (
             registro["alumno_id"] == alumno_id
@@ -216,7 +288,10 @@ def nota_cuatrimestre(
     return None
 
 
-def obtener_nota_final(alumno_id, asignacion_id):
+def obtener_nota_final(
+    alumno_id,
+    asignacion_id
+):
     primero = nota_cuatrimestre(
         alumno_id,
         asignacion_id,
@@ -242,9 +317,191 @@ def obtener_nota_final(alumno_id, asignacion_id):
         return "Pendiente"
 
     return round(
-        (float(nota1) + float(nota2)) / 2,
+        (
+            float(nota1)
+            + float(nota2)
+        ) / 2,
         2
     )
+
+
+# ============================================================
+# FUNCIONES PARA CALENDARIO
+# ============================================================
+
+def nombre_mes(mes):
+    meses = [
+        "",
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre"
+    ]
+
+    return meses[mes]
+
+
+def obtener_dia_semana(fecha):
+    nombres = [
+        "Lunes",
+        "Martes",
+        "Miércoles",
+        "Jueves",
+        "Viernes",
+        "Sábado",
+        "Domingo"
+    ]
+
+    return nombres[fecha.weekday()]
+
+
+def cambiar_mes(direccion):
+    mes = st.session_state.mes_calendario
+    anio = st.session_state.anio_calendario
+
+    mes += direccion
+
+    if mes > 12:
+        mes = 1
+        anio += 1
+
+    if mes < 1:
+        mes = 12
+        anio -= 1
+
+    st.session_state.mes_calendario = mes
+    st.session_state.anio_calendario = anio
+
+
+def volver_mes_actual():
+    hoy = date.today()
+
+    st.session_state.mes_calendario = hoy.month
+    st.session_state.anio_calendario = hoy.year
+    st.session_state.fecha_calendario_seleccionada = hoy
+
+
+def seleccionar_fecha_calendario(fecha):
+    st.session_state.fecha_calendario_seleccionada = fecha
+
+
+def obtener_eventos_del_mes(
+    mes,
+    anio
+):
+    eventos = []
+
+    for evento in st.session_state.eventos_calendario:
+
+        try:
+            fecha_evento = datetime.strptime(
+                evento["fecha"],
+                "%Y-%m-%d"
+            ).date()
+
+        except ValueError:
+            continue
+
+        if (
+            fecha_evento.month == mes
+            and fecha_evento.year == anio
+        ):
+            eventos.append(evento)
+
+    return eventos
+
+
+def eventos_del_dia_en_mes(
+    dia,
+    mes,
+    anio
+):
+    fecha = date(
+        anio,
+        mes,
+        dia
+    )
+
+    return todos_los_eventos_para_fecha(
+        fecha
+    )
+
+
+def formato_fecha_es(fecha):
+    nombres_dias = [
+        "lunes",
+        "martes",
+        "miércoles",
+        "jueves",
+        "viernes",
+        "sábado",
+        "domingo"
+    ]
+
+    nombres_meses = [
+        "",
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre"
+    ]
+
+    return (
+        f"{nombres_dias[fecha.weekday()].capitalize()} "
+        f"{fecha.day} de "
+        f"{nombres_meses[fecha.month]} "
+        f"de {fecha.year}"
+    )
+
+
+def mostrar_evento_resumido(evento):
+    tipo = evento["tipo"]
+    descripcion = evento["descripcion"]
+
+    if len(descripcion) > 24:
+        descripcion = descripcion[:21] + "..."
+
+    return f"{tipo}: {descripcion}"
+
+
+# ============================================================
+# FUNCIONES PARA LIMPIAR FORMULARIOS
+# ============================================================
+
+def incrementar_formulario(nombre):
+    clave = f"version_{nombre}"
+
+    if clave not in st.session_state:
+        st.session_state[clave] = 0
+
+    st.session_state[clave] += 1
+
+    return st.session_state[clave]
+
+
+def obtener_version_formulario(nombre):
+    clave = f"version_{nombre}"
+
+    if clave not in st.session_state:
+        st.session_state[clave] = 0
+
+    return st.session_state[clave]
 
 
 # ============================================================
@@ -275,10 +532,69 @@ opcion = st.sidebar.radio(
 
 if opcion == "🏠 Inicio":
 
+    hoy = date.today()
+
     st.title("🎓 Aula360")
+
     st.subheader(
         "Sistema de gestión y seguimiento docente"
     )
+
+    st.markdown(
+        f"### 📅 {formato_fecha_es(hoy)}"
+    )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # AGENDA DE HOY
+    # --------------------------------------------------------
+
+    st.subheader("📌 Agenda de hoy")
+
+    eventos_hoy = todos_los_eventos_para_fecha(
+        hoy
+    )
+
+    if not eventos_hoy:
+
+        st.success(
+            "No hay eventos ni conmemoraciones "
+            "registrados para hoy."
+        )
+
+    else:
+
+        for evento in eventos_hoy:
+
+            if evento["tipo"] == "Conmemoración":
+
+                st.info(
+                    f"🎉 **{evento['tipo']}** — "
+                    f"{evento['descripcion']}"
+                )
+
+            elif evento["afecta_clases"]:
+
+                st.warning(
+                    f"⚠️ **{evento['tipo']}** — "
+                    f"{evento['descripcion']}"
+                )
+
+            else:
+
+                st.info(
+                    f"📌 **{evento['tipo']}** — "
+                    f"{evento['descripcion']}"
+                )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # RESUMEN
+    # --------------------------------------------------------
+
+    st.subheader("📊 Resumen")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -313,13 +629,11 @@ if opcion == "🏠 Inicio":
         - cursos y materias
         - alumnos
         - horarios
-        - calendario institucional
+        - calendario académico
         - asistencia
         - evaluaciones y calificaciones
         - observaciones
         - estadísticas
-
-        Actualmente el sistema utiliza **datos de prueba**.
         """
     )
 
@@ -358,7 +672,13 @@ elif opcion == "⚙️ Administración":
 
         with sub1:
 
-            with st.form("form_agregar_curso"):
+            version = obtener_version_formulario(
+                "agregar_curso"
+            )
+
+            with st.form(
+                f"form_agregar_curso_{version}"
+            ):
 
                 nombre = st.text_input(
                     "Nombre del curso"
@@ -387,6 +707,10 @@ elif opcion == "⚙️ Administración":
                         }
                     )
 
+                    incrementar_formulario(
+                        "agregar_curso"
+                    )
+
                     st.success(
                         "Curso agregado."
                     )
@@ -397,15 +721,19 @@ elif opcion == "⚙️ Administración":
 
             if st.session_state.cursos:
 
-                cursos_opciones = {
-                    curso["id"]: curso["nombre"]
-                    for curso in st.session_state.cursos
-                }
+                cursos_opciones = {}
+
+                for curso in st.session_state.cursos:
+                    cursos_opciones[
+                        curso["id"]
+                    ] = curso["nombre"]
 
                 curso_id = st.selectbox(
                     "Seleccioná un curso",
                     list(cursos_opciones.keys()),
-                    format_func=lambda x: cursos_opciones[x],
+                    format_func=(
+                        lambda x: cursos_opciones[x]
+                    ),
                     key="curso_modificar"
                 )
 
@@ -425,7 +753,9 @@ elif opcion == "⚙️ Administración":
 
                         if nuevo_nombre.strip():
 
-                            for curso in st.session_state.cursos:
+                            for curso in (
+                                st.session_state.cursos
+                            ):
 
                                 if curso["id"] == curso_id:
 
@@ -448,7 +778,9 @@ elif opcion == "⚙️ Administración":
 
                         tiene_asignaciones = any(
                             a["curso_id"] == curso_id
-                            for a in st.session_state.asignaciones
+                            for a in (
+                                st.session_state.asignaciones
+                            )
                         )
 
                         if tiene_asignaciones:
@@ -462,7 +794,9 @@ elif opcion == "⚙️ Administración":
 
                             st.session_state.cursos = [
                                 c
-                                for c in st.session_state.cursos
+                                for c in (
+                                    st.session_state.cursos
+                                )
                                 if c["id"] != curso_id
                             ]
 
@@ -474,13 +808,16 @@ elif opcion == "⚙️ Administración":
 
         with sub3:
 
-            datos = [
-                {
-                    "ID": curso["id"],
-                    "Curso": curso["nombre"]
-                }
-                for curso in st.session_state.cursos
-            ]
+            datos = []
+
+            for curso in st.session_state.cursos:
+
+                datos.append(
+                    {
+                        "ID": curso["id"],
+                        "Curso": curso["nombre"]
+                    }
+                )
 
             st.dataframe(
                 pd.DataFrame(datos),
@@ -506,7 +843,13 @@ elif opcion == "⚙️ Administración":
 
         with sub1:
 
-            with st.form("form_agregar_materia"):
+            version = obtener_version_formulario(
+                "agregar_materia"
+            )
+
+            with st.form(
+                f"form_agregar_materia_{version}"
+            ):
 
                 nombre = st.text_input(
                     "Nombre de la materia"
@@ -535,6 +878,10 @@ elif opcion == "⚙️ Administración":
                         }
                     )
 
+                    incrementar_formulario(
+                        "agregar_materia"
+                    )
+
                     st.success(
                         "Materia agregada."
                     )
@@ -545,15 +892,19 @@ elif opcion == "⚙️ Administración":
 
             if st.session_state.materias:
 
-                materias_opciones = {
-                    materia["id"]: materia["nombre"]
-                    for materia in st.session_state.materias
-                }
+                materias_opciones = {}
+
+                for materia in st.session_state.materias:
+                    materias_opciones[
+                        materia["id"]
+                    ] = materia["nombre"]
 
                 materia_id = st.selectbox(
                     "Seleccioná una materia",
                     list(materias_opciones.keys()),
-                    format_func=lambda x: materias_opciones[x],
+                    format_func=(
+                        lambda x: materias_opciones[x]
+                    ),
                     key="materia_modificar"
                 )
 
@@ -573,7 +924,9 @@ elif opcion == "⚙️ Administración":
 
                         if nuevo_nombre.strip():
 
-                            for materia in st.session_state.materias:
+                            for materia in (
+                                st.session_state.materias
+                            ):
 
                                 if materia["id"] == materia_id:
 
@@ -596,7 +949,9 @@ elif opcion == "⚙️ Administración":
 
                         tiene_asignaciones = any(
                             a["materia_id"] == materia_id
-                            for a in st.session_state.asignaciones
+                            for a in (
+                                st.session_state.asignaciones
+                            )
                         )
 
                         if tiene_asignaciones:
@@ -611,7 +966,9 @@ elif opcion == "⚙️ Administración":
 
                             st.session_state.materias = [
                                 m
-                                for m in st.session_state.materias
+                                for m in (
+                                    st.session_state.materias
+                                )
                                 if m["id"] != materia_id
                             ]
 
@@ -623,13 +980,16 @@ elif opcion == "⚙️ Administración":
 
         with sub3:
 
-            datos = [
-                {
-                    "ID": materia["id"],
-                    "Materia": materia["nombre"]
-                }
-                for materia in st.session_state.materias
-            ]
+            datos = []
+
+            for materia in st.session_state.materias:
+
+                datos.append(
+                    {
+                        "ID": materia["id"],
+                        "Materia": materia["nombre"]
+                    }
+                )
 
             st.dataframe(
                 pd.DataFrame(datos),
@@ -656,29 +1016,40 @@ elif opcion == "⚙️ Administración":
 
         with sub1:
 
-            cursos_opciones = {
-                curso["id"]: curso["nombre"]
-                for curso in st.session_state.cursos
-            }
+            cursos_opciones = {}
 
-            materias_opciones = {
-                materia["id"]: materia["nombre"]
-                for materia in st.session_state.materias
-            }
+            for curso in st.session_state.cursos:
+                cursos_opciones[
+                    curso["id"]
+                ] = curso["nombre"]
 
-            if cursos_opciones and materias_opciones:
+            materias_opciones = {}
+
+            for materia in st.session_state.materias:
+                materias_opciones[
+                    materia["id"]
+                ] = materia["nombre"]
+
+            if (
+                cursos_opciones
+                and materias_opciones
+            ):
 
                 curso_id = st.selectbox(
                     "Curso",
                     list(cursos_opciones.keys()),
-                    format_func=lambda x: cursos_opciones[x],
+                    format_func=(
+                        lambda x: cursos_opciones[x]
+                    ),
                     key="asig_curso"
                 )
 
                 materia_id = st.selectbox(
                     "Materia",
                     list(materias_opciones.keys()),
-                    format_func=lambda x: materias_opciones[x],
+                    format_func=(
+                        lambda x: materias_opciones[x]
+                    ),
                     key="asig_materia"
                 )
 
@@ -689,7 +1060,9 @@ elif opcion == "⚙️ Administración":
                     existe = any(
                         a["curso_id"] == curso_id
                         and a["materia_id"] == materia_id
-                        for a in st.session_state.asignaciones
+                        for a in (
+                            st.session_state.asignaciones
+                        )
                     )
 
                     if existe:
@@ -721,13 +1094,17 @@ elif opcion == "⚙️ Administración":
 
             if st.session_state.asignaciones:
 
-                for asignacion in st.session_state.asignaciones:
+                for asignacion in (
+                    st.session_state.asignaciones
+                ):
 
                     nombre = obtener_nombre_asignacion(
                         asignacion["id"]
                     )
 
-                    col1, col2 = st.columns([5, 1])
+                    col1, col2 = st.columns(
+                        [5, 1]
+                    )
 
                     with col1:
 
@@ -737,27 +1114,44 @@ elif opcion == "⚙️ Administración":
 
                         if st.button(
                             "Eliminar",
-                            key=f"eliminar_asig_{asignacion['id']}"
+                            key=(
+                                f"eliminar_asig_"
+                                f"{asignacion['id']}"
+                            )
                         ):
 
-                            asignacion_id = asignacion["id"]
+                            asignacion_id = (
+                                asignacion["id"]
+                            )
 
                             st.session_state.asignaciones = [
                                 a
-                                for a in st.session_state.asignaciones
+                                for a in (
+                                    st.session_state.asignaciones
+                                )
                                 if a["id"] != asignacion_id
                             ]
 
                             st.session_state.alumnos = [
                                 a
-                                for a in st.session_state.alumnos
-                                if a["asignacion_id"] != asignacion_id
+                                for a in (
+                                    st.session_state.alumnos
+                                )
+                                if (
+                                    a["asignacion_id"]
+                                    != asignacion_id
+                                )
                             ]
 
                             st.session_state.horarios = [
                                 h
-                                for h in st.session_state.horarios
-                                if h["asignacion_id"] != asignacion_id
+                                for h in (
+                                    st.session_state.horarios
+                                )
+                                if (
+                                    h["asignacion_id"]
+                                    != asignacion_id
+                                )
                             ]
 
                             st.success(
@@ -775,10 +1169,15 @@ elif opcion == "👥 Alumnos":
 
     st.title("👥 Alumnos")
 
-    asignaciones_opciones = {
-        a["id"]: obtener_nombre_asignacion(a["id"])
-        for a in st.session_state.asignaciones
-    }
+    asignaciones_opciones = {}
+
+    for asignacion in st.session_state.asignaciones:
+
+        asignaciones_opciones[
+            asignacion["id"]
+        ] = obtener_nombre_asignacion(
+            asignacion["id"]
+        )
 
     if not asignaciones_opciones:
 
@@ -797,14 +1196,21 @@ elif opcion == "👥 Alumnos":
 
         with tab1:
 
-            asignacion_id = st.selectbox(
-                "Curso y materia",
-                list(asignaciones_opciones.keys()),
-                format_func=lambda x: asignaciones_opciones[x],
-                key="alumno_asignacion"
+            version = obtener_version_formulario(
+                "agregar_alumno"
             )
 
-            with st.form("form_agregar_alumno"):
+            with st.form(
+                f"form_agregar_alumno_{version}"
+            ):
+
+                asignacion_id = st.selectbox(
+                    "Curso y materia",
+                    list(asignaciones_opciones.keys()),
+                    format_func=(
+                        lambda x: asignaciones_opciones[x]
+                    )
+                )
 
                 nombre = st.text_input(
                     "Nombre"
@@ -842,6 +1248,10 @@ elif opcion == "👥 Alumnos":
                         }
                     )
 
+                    incrementar_formulario(
+                        "agregar_alumno"
+                    )
+
                     st.success(
                         "Alumno agregado."
                     )
@@ -853,12 +1263,16 @@ elif opcion == "👥 Alumnos":
             asignacion_id = st.selectbox(
                 "Seleccioná curso y materia",
                 list(asignaciones_opciones.keys()),
-                format_func=lambda x: asignaciones_opciones[x],
+                format_func=(
+                    lambda x: asignaciones_opciones[x]
+                ),
                 key="alumnos_listado_asig"
             )
 
-            alumnos_asignacion = obtener_alumnos_asignacion(
-                asignacion_id
+            alumnos_asignacion = (
+                obtener_alumnos_asignacion(
+                    asignacion_id
+                )
             )
 
             if not alumnos_asignacion:
@@ -873,9 +1287,11 @@ elif opcion == "👥 Alumnos":
 
                 for alumno in alumnos_asignacion:
 
-                    porcentaje = calcular_porcentaje_asistencia(
-                        alumno["id"],
-                        asignacion_id
+                    porcentaje = (
+                        calcular_porcentaje_asistencia(
+                            alumno["id"],
+                            asignacion_id
+                        )
                     )
 
                     datos.append(
@@ -883,7 +1299,8 @@ elif opcion == "👥 Alumnos":
                             "ID": alumno["id"],
                             "Apellido": alumno["apellido"],
                             "Nombre": alumno["nombre"],
-                            "Asistencia": f"{porcentaje}%"
+                            "Asistencia":
+                                f"{porcentaje}%"
                         }
                     )
 
@@ -900,26 +1317,340 @@ elif opcion == "👥 Alumnos":
 
 elif opcion == "🗓️ Calendario":
 
-    st.title("🗓️ Calendario")
+    st.title("🗓️ Calendario académico")
 
     st.markdown(
         """
-        Registrá feriados, artículos, mesas de examen,
-        actos, reuniones y cualquier otra situación
-        que deba quedar asociada a una fecha.
+        Desde este calendario podés registrar y consultar
+        feriados, conmemoraciones, recesos, artículos,
+        exámenes, mesas, actos, reuniones y notas personales.
         """
     )
 
-    tab1, tab2, tab3 = st.tabs(
-        [
-            "Agregar evento",
-            "Eventos registrados",
-            "Vista por fecha"
-        ]
+    # ========================================================
+    # ENCABEZADO DEL MES
+    # ========================================================
+
+    col1, col2, col3 = st.columns(
+        [1, 5, 1]
+    )
+
+    with col1:
+
+        if st.button(
+            "◀",
+            key="mes_anterior"
+        ):
+
+            cambiar_mes(-1)
+            st.rerun()
+
+    with col2:
+
+        st.markdown(
+            f"<h2 style='text-align:center;'>"
+            f"{nombre_mes(st.session_state.mes_calendario)} "
+            f"{st.session_state.anio_calendario}"
+            f"</h2>",
+            unsafe_allow_html=True
+        )
+
+    with col3:
+
+        if st.button(
+            "▶",
+            key="mes_siguiente"
+        ):
+
+            cambiar_mes(1)
+            st.rerun()
+
+    if st.button(
+        "📅 Volver al mes actual",
+        key="volver_mes_actual"
+    ):
+
+        volver_mes_actual()
+        st.rerun()
+
+    st.divider()
+
+    # ========================================================
+    # GRILLA MENSUAL
+    # ========================================================
+
+    cal = calendar.Calendar(
+        firstweekday=0
+    )
+
+    semanas = cal.monthdayscalendar(
+        st.session_state.anio_calendario,
+        st.session_state.mes_calendario
+    )
+
+    nombres_dias = [
+        "Lunes",
+        "Martes",
+        "Miércoles",
+        "Jueves",
+        "Viernes",
+        "Sábado",
+        "Domingo"
+    ]
+
+    encabezados = st.columns(7)
+
+    for indice in range(7):
+
+        with encabezados[indice]:
+
+            st.markdown(
+                f"**{nombres_dias[indice]}**"
+            )
+
+    for semana in semanas:
+
+        columnas = st.columns(7)
+
+        for indice, dia in enumerate(semana):
+
+            with columnas[indice]:
+
+                if dia == 0:
+
+                    st.empty()
+
+                else:
+
+                    fecha = date(
+                        st.session_state.anio_calendario,
+                        st.session_state.mes_calendario,
+                        dia
+                    )
+
+                    es_hoy = (
+                        fecha == date.today()
+                    )
+
+                    es_seleccionada = (
+                        fecha
+                        == st.session_state
+                        .fecha_calendario_seleccionada
+                    )
+
+                    if es_hoy:
+
+                        titulo_dia = (
+                            f"📍 **{dia} · HOY**"
+                        )
+
+                    elif es_seleccionada:
+
+                        titulo_dia = (
+                            f"🔵 **{dia}**"
+                        )
+
+                    else:
+
+                        titulo_dia = f"**{dia}**"
+
+                    st.markdown(
+                        titulo_dia
+                    )
+
+                    eventos_dia = (
+                        eventos_del_dia_en_mes(
+                            dia,
+                            st.session_state
+                            .mes_calendario,
+                            st.session_state
+                            .anio_calendario
+                        )
+                    )
+
+                    if eventos_dia:
+
+                        for evento in eventos_dia:
+
+                            if (
+                                evento["tipo"]
+                                == "Conmemoración"
+                            ):
+
+                                st.caption(
+                                    "🎉 "
+                                    + mostrar_evento_resumido(
+                                        evento
+                                    )
+                                )
+
+                            elif evento[
+                                "afecta_clases"
+                            ]:
+
+                                st.caption(
+                                    "⚠️ "
+                                    + mostrar_evento_resumido(
+                                        evento
+                                    )
+                                )
+
+                            else:
+
+                                st.caption(
+                                    "📌 "
+                                    + mostrar_evento_resumido(
+                                        evento
+                                    )
+                                )
+
+                    else:
+
+                        st.caption(
+                            "Sin eventos"
+                        )
+
+                    if st.button(
+                        "Seleccionar",
+                        key=(
+                            f"dia_{"
+                            f"st.session_state"
+                            f".anio_calendario}_"
+                            f"{st.session_state"
+                            f".mes_calendario}_"
+                            f"{dia}"
+                        )
+                    ):
+
+                        seleccionar_fecha_calendario(
+                            fecha
+                        )
+
+                        st.rerun()
+
+    st.divider()
+
+    # ========================================================
+    # DÍA SELECCIONADO
+    # ========================================================
+
+    fecha_seleccionada = (
+        st.session_state
+        .fecha_calendario_seleccionada
+    )
+
+    st.subheader(
+        f"📌 {formato_fecha_es(fecha_seleccionada)}"
+    )
+
+    eventos_seleccionados = (
+        todos_los_eventos_para_fecha(
+            fecha_seleccionada
+        )
+    )
+
+    # ========================================================
+    # EVENTOS DEL DÍA
+    # ========================================================
+
+    if eventos_seleccionados:
+
+        st.markdown(
+            "### Eventos registrados"
+        )
+
+        for evento in eventos_seleccionados:
+
+            col1, col2 = st.columns(
+                [6, 1]
+            )
+
+            with col1:
+
+                st.markdown(
+                    f"**{evento['tipo']}**"
+                )
+
+                st.write(
+                    evento["descripcion"]
+                )
+
+                if evento["alcance"] == (
+                    "Todas mis clases"
+                ):
+
+                    st.caption(
+                        "Alcance: todas mis clases"
+                    )
+
+                else:
+
+                    nombre_asignacion = (
+                        obtener_nombre_asignacion(
+                            evento["asignacion_id"]
+                        )
+                    )
+
+                    st.caption(
+                        "Alcance: "
+                        + nombre_asignacion
+                    )
+
+                if evento["afecta_clases"]:
+
+                    st.warning(
+                        "Afecta el dictado normal "
+                        "de clases."
+                    )
+
+            with col2:
+
+                if st.button(
+                    "Eliminar",
+                    key=(
+                        f"eliminar_evento_cal_"
+                        f"{evento['id']}"
+                    )
+                ):
+
+                    st.session_state.eventos_calendario = [
+                        e
+                        for e in (
+                            st.session_state
+                            .eventos_calendario
+                        )
+                        if e["id"] != evento["id"]
+                    ]
+
+                    st.success(
+                        "Evento eliminado."
+                    )
+
+                    st.rerun()
+
+            st.divider()
+
+    else:
+
+        st.info(
+            "No hay eventos registrados para este día."
+        )
+
+    # ========================================================
+    # AGREGAR NUEVO EVENTO
+    # ========================================================
+
+    st.markdown(
+        "### ➕ Agregar nota o evento"
+    )
+
+    version = obtener_version_formulario(
+        "agregar_evento_calendario"
     )
 
     tipos_evento = [
         "Feriado",
+        "Conmemoración",
         "Receso",
         "Sin actividad escolar",
         "Artículo docente",
@@ -930,235 +1661,229 @@ elif opcion == "🗓️ Calendario":
         "Otro"
     ]
 
-    # ========================================================
-    # AGREGAR EVENTO
-    # ========================================================
+    alcance_opciones = [
+        "Todas mis clases",
+        "Un curso y materia específicos"
+    ]
 
-    with tab1:
-
-        fecha_evento = st.date_input(
-            "Fecha",
-            value=date.today(),
-            key="cal_fecha"
-        )
+    with st.form(
+        f"form_evento_calendario_{version}"
+    ):
 
         tipo_evento = st.selectbox(
             "Tipo de evento",
             tipos_evento
         )
 
-        alcance_opciones = [
-            "Todas mis clases",
-            "Un curso y materia específicos"
-        ]
-
-        alcance = st.radio(
+        alcance = st.selectbox(
             "Alcance",
-            alcance_opciones,
-            key="cal_alcance"
+            alcance_opciones
         )
 
         asignacion_id = None
 
-        if alcance == "Un curso y materia específicos":
+        if alcance == (
+            "Un curso y materia específicos"
+        ):
 
-            opciones = {
-                a["id"]: obtener_nombre_asignacion(a["id"])
-                for a in st.session_state.asignaciones
-            }
+            opciones_asignaciones = {}
 
-            if opciones:
+            for asignacion in (
+                st.session_state.asignaciones
+            ):
+
+                opciones_asignaciones[
+                    asignacion["id"]
+                ] = obtener_nombre_asignacion(
+                    asignacion["id"]
+                )
+
+            if opciones_asignaciones:
 
                 asignacion_id = st.selectbox(
                     "Curso y materia",
-                    list(opciones.keys()),
-                    format_func=lambda x: opciones[x],
-                    key="cal_asignacion"
-                )
-
-            else:
-
-                st.warning(
-                    "No hay asignaciones disponibles."
+                    list(
+                        opciones_asignaciones.keys()
+                    ),
+                    format_func=(
+                        lambda x:
+                        opciones_asignaciones[x]
+                    )
                 )
 
         afecta_clases = st.checkbox(
-            "Afecta el dictado normal de clases",
-            value=False
+            "Afecta el dictado normal de clases"
         )
 
         descripcion = st.text_area(
             "Nota / descripción",
             placeholder=(
-                "Ejemplo: No asistí este día. "
-                "Examen de Software II. "
-                "Acto institucional, etc."
+                "Ej.: No asistí este día. "
+                "Evaluación de Software II. "
+                "Acto institucional..."
             )
         )
 
-        if st.button(
-            "Registrar evento"
+        guardar_evento = st.form_submit_button(
+            "💾 Guardar"
+        )
+
+    if guardar_evento:
+
+        if (
+            alcance
+            == "Un curso y materia específicos"
+            and asignacion_id is None
         ):
 
-            if (
-                alcance == "Un curso y materia específicos"
-                and asignacion_id is None
+            st.error(
+                "Seleccioná un curso y materia."
+            )
+
+        elif not descripcion.strip():
+
+            st.error(
+                "Ingresá una nota o descripción."
+            )
+
+        else:
+
+            st.session_state.eventos_calendario.append(
+                {
+                    "id": siguiente_id(
+                        st.session_state
+                        .eventos_calendario
+                    ),
+                    "fecha":
+                        fecha_seleccionada.isoformat(),
+                    "tipo": tipo_evento,
+                    "alcance": alcance,
+                    "asignacion_id":
+                        asignacion_id,
+                    "descripcion":
+                        descripcion.strip(),
+                    "afecta_clases":
+                        afecta_clases
+                }
+            )
+
+            incrementar_formulario(
+                "agregar_evento_calendario"
+            )
+
+            st.success(
+                "Evento guardado correctamente."
+            )
+
+            st.rerun()
+
+    # ========================================================
+    # MODIFICAR EVENTO
+    # ========================================================
+
+    if eventos_seleccionados:
+
+        st.markdown(
+            "### ✏️ Modificar evento"
+        )
+
+        opciones_eventos = {}
+
+        for evento in eventos_seleccionados:
+
+            texto = (
+                f"{evento['tipo']} — "
+                f"{evento['descripcion']}"
+            )
+
+            opciones_eventos[
+                evento["id"]
+            ] = texto
+
+        evento_id = st.selectbox(
+            "Seleccioná el evento",
+            list(opciones_eventos.keys()),
+            format_func=(
+                lambda x: opciones_eventos[x]
+            ),
+            key="evento_modificar"
+        )
+
+        evento_actual = None
+
+        for evento in eventos_seleccionados:
+
+            if evento["id"] == evento_id:
+
+                evento_actual = evento
+                break
+
+        if evento_actual is not None:
+
+            tipos_evento_mod = [
+                "Feriado",
+                "Conmemoración",
+                "Receso",
+                "Sin actividad escolar",
+                "Artículo docente",
+                "Examen",
+                "Mesa de examen",
+                "Acto / actividad institucional",
+                "Reunión",
+                "Otro"
+            ]
+
+            tipo_actual = evento_actual["tipo"]
+
+            indice_tipo = 0
+
+            if tipo_actual in tipos_evento_mod:
+
+                indice_tipo = tipos_evento_mod.index(
+                    tipo_actual
+                )
+
+            tipo_nuevo = st.selectbox(
+                "Tipo",
+                tipos_evento_mod,
+                index=indice_tipo,
+                key="tipo_evento_modificar"
+            )
+
+            descripcion_nueva = st.text_area(
+                "Nota / descripción",
+                value=evento_actual["descripcion"],
+                key="descripcion_evento_modificar"
+            )
+
+            afecta_nuevo = st.checkbox(
+                "Afecta el dictado normal de clases",
+                value=evento_actual[
+                    "afecta_clases"
+                ],
+                key="afecta_evento_modificar"
+            )
+
+            if st.button(
+                "💾 Guardar modificación",
+                key="guardar_modificacion_evento"
             ):
 
-                st.error(
-                    "Seleccioná un curso y materia."
-                )
+                evento_actual["tipo"] = tipo_nuevo
 
-            elif not descripcion.strip():
+                evento_actual[
+                    "descripcion"
+                ] = descripcion_nueva.strip()
 
-                st.error(
-                    "Ingresá una descripción."
-                )
-
-            else:
-
-                st.session_state.eventos_calendario.append(
-                    {
-                        "id": siguiente_id(
-                            st.session_state.eventos_calendario
-                        ),
-                        "fecha": fecha_evento.isoformat(),
-                        "tipo": tipo_evento,
-                        "alcance": alcance,
-                        "asignacion_id": asignacion_id,
-                        "descripcion": descripcion.strip(),
-                        "afecta_clases": afecta_clases
-                    }
-                )
+                evento_actual[
+                    "afecta_clases"
+                ] = afecta_nuevo
 
                 st.success(
-                    "Evento registrado."
+                    "Evento modificado."
                 )
 
                 st.rerun()
-
-    # ========================================================
-    # EVENTOS REGISTRADOS
-    # ========================================================
-
-    with tab2:
-
-        if not st.session_state.eventos_calendario:
-
-            st.info(
-                "No hay eventos registrados."
-            )
-
-        else:
-
-            eventos_ordenados = sorted(
-                st.session_state.eventos_calendario,
-                key=lambda x: x["fecha"]
-            )
-
-            for evento in eventos_ordenados:
-
-                asignacion_nombre = ""
-
-                if evento["asignacion_id"] is not None:
-
-                    asignacion_nombre = (
-                        obtener_nombre_asignacion(
-                            evento["asignacion_id"]
-                        )
-                    )
-
-                texto_alcance = evento["alcance"]
-
-                if asignacion_nombre:
-
-                    texto_alcance = asignacion_nombre
-
-                col1, col2 = st.columns([6, 1])
-
-                with col1:
-
-                    st.markdown(
-                        f"**{evento['fecha']} — "
-                        f"{evento['tipo']}**"
-                    )
-
-                    st.write(
-                        f"Alcance: {texto_alcance}"
-                    )
-
-                    st.write(
-                        evento["descripcion"]
-                    )
-
-                    if evento["afecta_clases"]:
-
-                        st.warning(
-                            "Afecta el dictado normal "
-                            "de clases."
-                        )
-
-                with col2:
-
-                    if st.button(
-                        "Eliminar",
-                        key=f"eliminar_evento_{evento['id']}"
-                    ):
-
-                        st.session_state.eventos_calendario = [
-                            e
-                            for e in st.session_state.eventos_calendario
-                            if e["id"] != evento["id"]
-                        ]
-
-                        st.success(
-                            "Evento eliminado."
-                        )
-
-                        st.rerun()
-
-                st.divider()
-
-    # ========================================================
-    # VISTA POR FECHA
-    # ========================================================
-
-    with tab3:
-
-        fecha_consulta = st.date_input(
-            "Seleccioná una fecha",
-            value=date.today(),
-            key="cal_consulta"
-        )
-
-        eventos = eventos_para_fecha(
-            fecha_consulta
-        )
-
-        if not eventos:
-
-            st.info(
-                "No hay eventos registrados "
-                "para esta fecha."
-            )
-
-        else:
-
-            for evento in eventos:
-
-                st.markdown(
-                    f"### {evento['tipo']}"
-                )
-
-                st.write(
-                    evento["descripcion"]
-                )
-
-                if evento["afecta_clases"]:
-
-                    st.warning(
-                        "Este evento afecta las clases."
-                    )
 
 
 # ============================================================
@@ -1186,10 +1911,15 @@ elif opcion == "🕐 Horarios":
         "Viernes"
     ]
 
-    asignaciones_opciones = {
-        a["id"]: obtener_nombre_asignacion(a["id"])
-        for a in st.session_state.asignaciones
-    }
+    asignaciones_opciones = {}
+
+    for asignacion in st.session_state.asignaciones:
+
+        asignaciones_opciones[
+            asignacion["id"]
+        ] = obtener_nombre_asignacion(
+            asignacion["id"]
+        )
 
     # ========================================================
     # VISTA SEMANAL
@@ -1230,7 +1960,9 @@ elif opcion == "🕐 Horarios":
 
                         asignacion_nombre = (
                             obtener_nombre_asignacion(
-                                horario["asignacion_id"]
+                                horario[
+                                    "asignacion_id"
+                                ]
                             )
                         )
 
@@ -1239,14 +1971,15 @@ elif opcion == "🕐 Horarios":
                         )
 
                         st.write(
-                            f"🕐 {horario['hora_inicio']} - "
+                            f"🕐 "
+                            f"{horario['hora_inicio']} - "
                             f"{horario['hora_fin']}"
                         )
 
                         st.divider()
 
     # ========================================================
-    # AGREGAR
+    # AGREGAR HORARIO
     # ========================================================
 
     with tab2:
@@ -1259,38 +1992,47 @@ elif opcion == "🕐 Horarios":
 
         else:
 
-            dia = st.selectbox(
-                "Día",
-                dias,
-                key="horario_dia_agregar"
+            version = obtener_version_formulario(
+                "agregar_horario"
             )
 
-            asignacion_id = st.selectbox(
-                "Curso y materia",
-                list(asignaciones_opciones.keys()),
-                format_func=lambda x: asignaciones_opciones[x],
-                key="horario_asig_agregar"
-            )
-
-            hora_inicio = st.time_input(
-                "Hora de inicio",
-                value=pd.Timestamp(
-                    "15:30"
-                ).time(),
-                key="horario_inicio_agregar"
-            )
-
-            hora_fin = st.time_input(
-                "Hora de finalización",
-                value=pd.Timestamp(
-                    "17:20"
-                ).time(),
-                key="horario_fin_agregar"
-            )
-
-            if st.button(
-                "Agregar horario"
+            with st.form(
+                f"form_agregar_horario_{version}"
             ):
+
+                dia = st.selectbox(
+                    "Día",
+                    dias
+                )
+
+                asignacion_id = st.selectbox(
+                    "Curso y materia",
+                    list(
+                        asignaciones_opciones.keys()
+                    ),
+                    format_func=(
+                        lambda x:
+                        asignaciones_opciones[x]
+                    )
+                )
+
+                hora_inicio = st.time_input(
+                    "Hora de inicio",
+                    value=time(15, 30)
+                )
+
+                hora_fin = st.time_input(
+                    "Hora de finalización",
+                    value=time(17, 20)
+                )
+
+                guardar_horario = (
+                    st.form_submit_button(
+                        "Agregar horario"
+                    )
+                )
+
+            if guardar_horario:
 
                 if hora_fin <= hora_inicio:
 
@@ -1311,22 +2053,18 @@ elif opcion == "🕐 Horarios":
 
                     superpone = False
 
-                    for horario in st.session_state.horarios:
+                    for horario in (
+                        st.session_state.horarios
+                    ):
 
                         if horario["dia"] != dia:
                             continue
 
-                        inicio_existente = (
-                            horario["hora_inicio"]
-                        )
-
-                        fin_existente = (
-                            horario["hora_fin"]
-                        )
-
                         if (
-                            nuevo_inicio < fin_existente
-                            and nuevo_fin > inicio_existente
+                            nuevo_inicio
+                            < horario["hora_fin"]
+                            and nuevo_fin
+                            > horario["hora_inicio"]
                         ):
 
                             superpone = True
@@ -1346,11 +2084,18 @@ elif opcion == "🕐 Horarios":
                                 "id": siguiente_id(
                                     st.session_state.horarios
                                 ),
-                                "asignacion_id": asignacion_id,
+                                "asignacion_id":
+                                    asignacion_id,
                                 "dia": dia,
-                                "hora_inicio": nuevo_inicio,
-                                "hora_fin": nuevo_fin
+                                "hora_inicio":
+                                    nuevo_inicio,
+                                "hora_fin":
+                                    nuevo_fin
                             }
+                        )
+
+                        incrementar_formulario(
+                            "agregar_horario"
                         )
 
                         st.success(
@@ -1360,7 +2105,7 @@ elif opcion == "🕐 Horarios":
                         st.rerun()
 
     # ========================================================
-    # MODIFICAR
+    # MODIFICAR HORARIO
     # ========================================================
 
     with tab3:
@@ -1375,7 +2120,9 @@ elif opcion == "🕐 Horarios":
 
             horarios_opciones = {}
 
-            for horario in st.session_state.horarios:
+            for horario in (
+                st.session_state.horarios
+            ):
 
                 asignacion_nombre = (
                     obtener_nombre_asignacion(
@@ -1396,14 +2143,21 @@ elif opcion == "🕐 Horarios":
 
             horario_id = st.selectbox(
                 "Seleccioná el horario",
-                list(horarios_opciones.keys()),
-                format_func=lambda x: horarios_opciones[x],
+                list(
+                    horarios_opciones.keys()
+                ),
+                format_func=(
+                    lambda x:
+                    horarios_opciones[x]
+                ),
                 key="horario_modificar"
             )
 
             horario_actual = next(
                 h
-                for h in st.session_state.horarios
+                for h in (
+                    st.session_state.horarios
+                )
                 if h["id"] == horario_id
             )
 
@@ -1424,24 +2178,35 @@ elif opcion == "🕐 Horarios":
                 "Curso y materia",
                 ids_asignaciones,
                 index=ids_asignaciones.index(
-                    horario_actual["asignacion_id"]
+                    horario_actual[
+                        "asignacion_id"
+                    ]
                 ),
-                format_func=lambda x: asignaciones_opciones[x],
+                format_func=(
+                    lambda x:
+                    asignaciones_opciones[x]
+                ),
                 key="horario_asig_mod"
             )
 
             hora_inicio_nueva = st.time_input(
                 "Hora de inicio",
-                value=pd.to_datetime(
-                    horario_actual["hora_inicio"]
+                value=datetime.strptime(
+                    horario_actual[
+                        "hora_inicio"
+                    ],
+                    "%H:%M"
                 ).time(),
                 key="horario_inicio_mod"
             )
 
             hora_fin_nueva = st.time_input(
                 "Hora de finalización",
-                value=pd.to_datetime(
-                    horario_actual["hora_fin"]
+                value=datetime.strptime(
+                    horario_actual[
+                        "hora_fin"
+                    ],
+                    "%H:%M"
                 ).time(),
                 key="horario_fin_mod"
             )
@@ -1460,16 +2225,22 @@ elif opcion == "🕐 Horarios":
                 else:
 
                     nuevo_inicio = (
-                        hora_inicio_nueva.strftime("%H:%M")
+                        hora_inicio_nueva.strftime(
+                            "%H:%M"
+                        )
                     )
 
                     nuevo_fin = (
-                        hora_fin_nueva.strftime("%H:%M")
+                        hora_fin_nueva.strftime(
+                            "%H:%M"
+                        )
                     )
 
                     superpone = False
 
-                    for horario in st.session_state.horarios:
+                    for horario in (
+                        st.session_state.horarios
+                    ):
 
                         if horario["id"] == horario_id:
                             continue
@@ -1478,8 +2249,10 @@ elif opcion == "🕐 Horarios":
                             continue
 
                         if (
-                            nuevo_inicio < horario["hora_fin"]
-                            and nuevo_fin > horario["hora_inicio"]
+                            nuevo_inicio
+                            < horario["hora_fin"]
+                            and nuevo_fin
+                            > horario["hora_inicio"]
                         ):
 
                             superpone = True
@@ -1494,7 +2267,9 @@ elif opcion == "🕐 Horarios":
 
                     else:
 
-                        horario_actual["dia"] = dia_nuevo
+                        horario_actual["dia"] = (
+                            dia_nuevo
+                        )
 
                         horario_actual[
                             "asignacion_id"
@@ -1515,7 +2290,7 @@ elif opcion == "🕐 Horarios":
                         st.rerun()
 
     # ========================================================
-    # ELIMINAR
+    # ELIMINAR HORARIO
     # ========================================================
 
     with tab4:
@@ -1530,7 +2305,9 @@ elif opcion == "🕐 Horarios":
 
             horarios_opciones = {}
 
-            for horario in st.session_state.horarios:
+            for horario in (
+                st.session_state.horarios
+            ):
 
                 asignacion_nombre = (
                     obtener_nombre_asignacion(
@@ -1551,8 +2328,13 @@ elif opcion == "🕐 Horarios":
 
             horario_id = st.selectbox(
                 "Seleccioná el horario a eliminar",
-                list(horarios_opciones.keys()),
-                format_func=lambda x: horarios_opciones[x],
+                list(
+                    horarios_opciones.keys()
+                ),
+                format_func=(
+                    lambda x:
+                    horarios_opciones[x]
+                ),
                 key="horario_eliminar"
             )
 
@@ -1562,7 +2344,9 @@ elif opcion == "🕐 Horarios":
 
                 st.session_state.horarios = [
                     h
-                    for h in st.session_state.horarios
+                    for h in (
+                        st.session_state.horarios
+                    )
                     if h["id"] != horario_id
                 ]
 
@@ -1581,10 +2365,17 @@ elif opcion == "📅 Asistencia":
 
     st.title("📅 Asistencia")
 
-    asignaciones_opciones = {
-        a["id"]: obtener_nombre_asignacion(a["id"])
-        for a in st.session_state.asignaciones
-    }
+    asignaciones_opciones = {}
+
+    for asignacion in (
+        st.session_state.asignaciones
+    ):
+
+        asignaciones_opciones[
+            asignacion["id"]
+        ] = obtener_nombre_asignacion(
+            asignacion["id"]
+        )
 
     if not asignaciones_opciones:
 
@@ -1596,8 +2387,13 @@ elif opcion == "📅 Asistencia":
 
         asignacion_id = st.selectbox(
             "Curso y materia",
-            list(asignaciones_opciones.keys()),
-            format_func=lambda x: asignaciones_opciones[x],
+            list(
+                asignaciones_opciones.keys()
+            ),
+            format_func=(
+                lambda x:
+                asignaciones_opciones[x]
+            ),
             key="asistencia_asignacion"
         )
 
@@ -1608,10 +2404,6 @@ elif opcion == "📅 Asistencia":
         )
 
         st.divider()
-
-        # ----------------------------------------------------
-        # EVENTOS DEL CALENDARIO
-        # ----------------------------------------------------
 
         eventos = eventos_para_fecha(
             fecha_asistencia,
@@ -1638,10 +2430,6 @@ elif opcion == "📅 Asistencia":
                         "normal de clases está afectado."
                     )
 
-        # ----------------------------------------------------
-        # HORARIO
-        # ----------------------------------------------------
-
         if not hay_horario_en_dia(
             asignacion_id,
             fecha_asistencia
@@ -1658,12 +2446,10 @@ elif opcion == "📅 Asistencia":
                 "Hay una clase prevista según el horario."
             )
 
-        # ----------------------------------------------------
-        # ALUMNOS
-        # ----------------------------------------------------
-
-        alumnos_asignacion = obtener_alumnos_asignacion(
-            asignacion_id
+        alumnos_asignacion = (
+            obtener_alumnos_asignacion(
+                asignacion_id
+            )
         )
 
         if not alumnos_asignacion:
@@ -1696,14 +2482,17 @@ elif opcion == "📅 Asistencia":
                     estado_actual = "presente"
 
                 estado = st.selectbox(
-                    f"{alumno['apellido']}, "
-                    f"{alumno['nombre']}",
+                    (
+                        f"{alumno['apellido']}, "
+                        f"{alumno['nombre']}"
+                    ),
                     estados,
                     index=estados.index(
                         estado_actual
                     ),
                     key=(
-                        f"estado_{alumno['id']}_"
+                        f"estado_"
+                        f"{alumno['id']}_"
                         f"{asignacion_id}_"
                         f"{fecha_asistencia.isoformat()}"
                     )
@@ -1727,16 +2516,10 @@ elif opcion == "📅 Asistencia":
                     )
 
                     st.success(
-                        f"Asistencia guardada para "
-                        f"{alumno['apellido']}, "
-                        f"{alumno['nombre']}."
+                        "Asistencia guardada."
                     )
 
                     st.rerun()
-
-            # ------------------------------------------------
-            # RESUMEN
-            # ------------------------------------------------
 
             st.divider()
 
@@ -1748,16 +2531,21 @@ elif opcion == "📅 Asistencia":
 
             for alumno in alumnos_asignacion:
 
-                porcentaje = calcular_porcentaje_asistencia(
-                    alumno["id"],
-                    asignacion_id
+                porcentaje = (
+                    calcular_porcentaje_asistencia(
+                        alumno["id"],
+                        asignacion_id
+                    )
                 )
 
                 datos.append(
                     {
-                        "Apellido": alumno["apellido"],
-                        "Nombre": alumno["nombre"],
-                        "Asistencia": f"{porcentaje}%"
+                        "Apellido":
+                            alumno["apellido"],
+                        "Nombre":
+                            alumno["nombre"],
+                        "Asistencia":
+                            f"{porcentaje}%"
                     }
                 )
 
@@ -1784,10 +2572,17 @@ elif opcion == "📝 Calificaciones":
         ]
     )
 
-    asignaciones_opciones = {
-        a["id"]: obtener_nombre_asignacion(a["id"])
-        for a in st.session_state.asignaciones
-    }
+    asignaciones_opciones = {}
+
+    for asignacion in (
+        st.session_state.asignaciones
+    ):
+
+        asignaciones_opciones[
+            asignacion["id"]
+        ] = obtener_nombre_asignacion(
+            asignacion["id"]
+        )
 
     # ========================================================
     # EVALUACIONES
@@ -1809,104 +2604,143 @@ elif opcion == "📝 Calificaciones":
 
         if asignaciones_opciones:
 
-            asignacion_id = st.selectbox(
-                "Curso y materia",
-                list(asignaciones_opciones.keys()),
-                format_func=lambda x: asignaciones_opciones[x],
-                key="eval_asignacion"
+            version = obtener_version_formulario(
+                "agregar_evaluacion"
             )
 
-            alumnos_asignacion = obtener_alumnos_asignacion(
-                asignacion_id
-            )
+            with st.form(
+                f"form_agregar_evaluacion_{version}"
+            ):
 
-            if alumnos_asignacion:
-
-                alumno_id = st.selectbox(
-                    "Alumno",
-                    [a["id"] for a in alumnos_asignacion],
-                    format_func=lambda x: next(
-                        (
-                            f"{a['apellido']}, "
-                            f"{a['nombre']}"
-                            for a in alumnos_asignacion
-                            if a["id"] == x
-                        ),
-                        "Alumno"
+                asignacion_id = st.selectbox(
+                    "Curso y materia",
+                    list(
+                        asignaciones_opciones.keys()
                     ),
-                    key="eval_alumno"
-                )
-
-                tipo = st.selectbox(
-                    "Tipo de evaluación",
-                    tipos_evaluacion
-                )
-
-                fecha = st.date_input(
-                    "Fecha",
-                    value=date.today(),
-                    key="eval_fecha"
-                )
-
-                nombre = st.text_input(
-                    "Nombre / descripción",
-                    placeholder=(
-                        "Ej.: TP N° 2 - Sistemas Operativos"
+                    format_func=(
+                        lambda x:
+                        asignaciones_opciones[x]
                     )
                 )
 
-                if tipo == "Revisión de carpeta":
+                alumnos_asignacion = (
+                    obtener_alumnos_asignacion(
+                        asignacion_id
+                    )
+                )
 
-                    resultado = st.selectbox(
-                        "Resultado",
+                if alumnos_asignacion:
+
+                    alumno_id = st.selectbox(
+                        "Alumno",
                         [
-                            "Completa",
-                            "Incompleta"
-                        ]
+                            a["id"]
+                            for a in alumnos_asignacion
+                        ],
+                        format_func=(
+                            lambda x:
+                            next(
+                                (
+                                    f"{a['apellido']}, "
+                                    f"{a['nombre']}"
+                                    for a
+                                    in alumnos_asignacion
+                                    if a["id"] == x
+                                ),
+                                "Alumno"
+                            )
+                        )
                     )
 
-                else:
-
-                    resultado = st.selectbox(
-                        "Resultado",
-                        ["Sin registrar"]
-                        + [
-                            str(i)
-                            for i in range(1, 11)
-                        ]
+                    tipo = st.selectbox(
+                        "Tipo de evaluación",
+                        tipos_evaluacion
                     )
 
-                if st.button(
-                    "Registrar evaluación"
-                ):
+                    fecha = st.date_input(
+                        "Fecha",
+                        value=date.today()
+                    )
 
-                    if not nombre.strip():
+                    nombre = st.text_input(
+                        "Nombre / descripción"
+                    )
 
-                        st.error(
-                            "Ingresá el nombre o descripción."
+                    if tipo == "Revisión de carpeta":
+
+                        resultado = st.selectbox(
+                            "Resultado",
+                            [
+                                "Completa",
+                                "Incompleta"
+                            ]
                         )
 
                     else:
 
-                        st.session_state.evaluaciones.append(
-                            {
-                                "id": siguiente_id(
-                                    st.session_state.evaluaciones
-                                ),
-                                "alumno_id": alumno_id,
-                                "asignacion_id": asignacion_id,
-                                "tipo": tipo,
-                                "fecha": fecha.isoformat(),
-                                "nombre": nombre.strip(),
-                                "resultado": resultado
-                            }
+                        resultado = st.selectbox(
+                            "Resultado",
+                            ["Sin registrar"]
+                            + [
+                                str(i)
+                                for i in range(1, 11)
+                            ]
                         )
 
-                        st.success(
-                            "Evaluación registrada."
+                    guardar = (
+                        st.form_submit_button(
+                            "Registrar evaluación"
                         )
+                    )
 
-                        st.rerun()
+                else:
+
+                    st.warning(
+                        "No hay alumnos en esta asignación."
+                    )
+
+                    guardar = False
+
+            if guardar:
+
+                if not nombre.strip():
+
+                    st.error(
+                        "Ingresá el nombre o descripción."
+                    )
+
+                else:
+
+                    st.session_state.evaluaciones.append(
+                        {
+                            "id": siguiente_id(
+                                st.session_state
+                                .evaluaciones
+                            ),
+                            "alumno_id":
+                                alumno_id,
+                            "asignacion_id":
+                                asignacion_id,
+                            "tipo":
+                                tipo,
+                            "fecha":
+                                fecha.isoformat(),
+                            "nombre":
+                                nombre.strip(),
+                            "resultado":
+                                resultado
+                        }
+                    )
+
+                    incrementar_formulario(
+                        "agregar_evaluacion"
+                    )
+
+                    st.success(
+                        "Evaluación registrada."
+                    )
+
+                    st.rerun()
 
         st.divider()
 
@@ -1914,13 +2748,18 @@ elif opcion == "📝 Calificaciones":
 
             datos = []
 
-            for evaluacion in st.session_state.evaluaciones:
+            for evaluacion in (
+                st.session_state.evaluaciones
+            ):
 
                 alumno = next(
                     (
                         a
-                        for a in st.session_state.alumnos
-                        if a["id"] == evaluacion["alumno_id"]
+                        for a in (
+                            st.session_state.alumnos
+                        )
+                        if a["id"]
+                        == evaluacion["alumno_id"]
                     ),
                     None
                 )
@@ -1934,15 +2773,22 @@ elif opcion == "📝 Calificaciones":
 
                     datos.append(
                         {
-                            "Fecha": evaluacion["fecha"],
+                            "Fecha":
+                                evaluacion["fecha"],
                             "Curso - Materia":
                                 obtener_nombre_asignacion(
-                                    evaluacion["asignacion_id"]
+                                    evaluacion[
+                                        "asignacion_id"
+                                    ]
                                 ),
-                            "Alumno": alumno_nombre,
-                            "Tipo": evaluacion["tipo"],
-                            "Evaluación": evaluacion["nombre"],
-                            "Resultado": evaluacion["resultado"]
+                            "Alumno":
+                                alumno_nombre,
+                            "Tipo":
+                                evaluacion["tipo"],
+                            "Evaluación":
+                                evaluacion["nombre"],
+                            "Resultado":
+                                evaluacion["resultado"]
                         }
                     )
 
@@ -1959,7 +2805,7 @@ elif opcion == "📝 Calificaciones":
             )
 
     # ========================================================
-    # CALIFICACIONES POR CUATRIMESTRE
+    # CUATRIMESTRE
     # ========================================================
 
     with tab2:
@@ -1970,124 +2816,168 @@ elif opcion == "📝 Calificaciones":
 
         if asignaciones_opciones:
 
-            asignacion_id = st.selectbox(
-                "Curso y materia",
-                list(asignaciones_opciones.keys()),
-                format_func=lambda x: asignaciones_opciones[x],
-                key="cuatri_asignacion"
+            version = obtener_version_formulario(
+                "agregar_calificacion_cuatrimestre"
             )
 
-            alumnos_asignacion = obtener_alumnos_asignacion(
-                asignacion_id
-            )
+            with st.form(
+                f"form_cuatrimestre_{version}"
+            ):
 
-            if alumnos_asignacion:
-
-                alumno_id = st.selectbox(
-                    "Alumno",
-                    [a["id"] for a in alumnos_asignacion],
-                    format_func=lambda x: next(
-                        (
-                            f"{a['apellido']}, "
-                            f"{a['nombre']}"
-                            for a in alumnos_asignacion
-                            if a["id"] == x
-                        ),
-                        "Alumno"
+                asignacion_id = st.selectbox(
+                    "Curso y materia",
+                    list(
+                        asignaciones_opciones.keys()
                     ),
-                    key="cuatri_alumno"
-                )
-
-                cuatrimestre = st.selectbox(
-                    "Cuatrimestre",
-                    [
-                        "1° cuatrimestre",
-                        "2° cuatrimestre"
-                    ]
-                )
-
-                conceptual_opciones = [
-                    "Sin registrar",
-                    "Excelente",
-                    "Muy Bueno",
-                    "Bueno",
-                    "Regular",
-                    "En proceso"
-                ]
-
-                conceptual = st.selectbox(
-                    "Calificación conceptual",
-                    conceptual_opciones
-                )
-
-                numerica_opciones = [
-                    "Sin registrar"
-                ] + [
-                    str(i)
-                    for i in range(1, 11)
-                ]
-
-                numerica = st.selectbox(
-                    "Calificación numérica",
-                    numerica_opciones
-                )
-
-                if st.button(
-                    "Guardar calificación"
-                ):
-
-                    registro = nota_cuatrimestre(
-                        alumno_id,
-                        asignacion_id,
-                        cuatrimestre
+                    format_func=(
+                        lambda x:
+                        asignaciones_opciones[x]
                     )
+                )
 
-                    if registro is None:
+                alumnos_asignacion = (
+                    obtener_alumnos_asignacion(
+                        asignacion_id
+                    )
+                )
 
-                        st.session_state.calificaciones_cuatrimestre.append(
-                            {
-                                "id": siguiente_id(
-                                    st.session_state.calificaciones_cuatrimestre
+                if alumnos_asignacion:
+
+                    alumno_id = st.selectbox(
+                        "Alumno",
+                        [
+                            a["id"]
+                            for a in alumnos_asignacion
+                        ],
+                        format_func=(
+                            lambda x:
+                            next(
+                                (
+                                    f"{a['apellido']}, "
+                                    f"{a['nombre']}"
+                                    for a
+                                    in alumnos_asignacion
+                                    if a["id"] == x
                                 ),
-                                "alumno_id": alumno_id,
-                                "asignacion_id": asignacion_id,
-                                "cuatrimestre": cuatrimestre,
-                                "nota_conceptual": conceptual,
-                                "nota_numerica": numerica
-                            }
+                                "Alumno"
+                            )
                         )
-
-                    else:
-
-                        registro[
-                            "nota_conceptual"
-                        ] = conceptual
-
-                        registro[
-                            "nota_numerica"
-                        ] = numerica
-
-                    st.success(
-                        "Calificación guardada."
                     )
 
-                    st.rerun()
+                    cuatrimestre = st.selectbox(
+                        "Cuatrimestre",
+                        [
+                            "1° cuatrimestre",
+                            "2° cuatrimestre"
+                        ]
+                    )
+
+                    conceptual = st.selectbox(
+                        "Calificación conceptual",
+                        [
+                            "Sin registrar",
+                            "Excelente",
+                            "Muy Bueno",
+                            "Bueno",
+                            "Regular",
+                            "En proceso"
+                        ]
+                    )
+
+                    numerica = st.selectbox(
+                        "Calificación numérica",
+                        ["Sin registrar"]
+                        + [
+                            str(i)
+                            for i in range(1, 11)
+                        ]
+                    )
+
+                    guardar = (
+                        st.form_submit_button(
+                            "Guardar calificación"
+                        )
+                    )
+
+                else:
+
+                    st.warning(
+                        "No hay alumnos en esta asignación."
+                    )
+
+                    guardar = False
+
+            if guardar:
+
+                registro = nota_cuatrimestre(
+                    alumno_id,
+                    asignacion_id,
+                    cuatrimestre
+                )
+
+                if registro is None:
+
+                    st.session_state.calificaciones_cuatrimestre.append(
+                        {
+                            "id": siguiente_id(
+                                st.session_state
+                                .calificaciones_cuatrimestre
+                            ),
+                            "alumno_id":
+                                alumno_id,
+                            "asignacion_id":
+                                asignacion_id,
+                            "cuatrimestre":
+                                cuatrimestre,
+                            "nota_conceptual":
+                                conceptual,
+                            "nota_numerica":
+                                numerica
+                        }
+                    )
+
+                else:
+
+                    registro[
+                        "nota_conceptual"
+                    ] = conceptual
+
+                    registro[
+                        "nota_numerica"
+                    ] = numerica
+
+                incrementar_formulario(
+                    "agregar_calificacion_cuatrimestre"
+                )
+
+                st.success(
+                    "Calificación guardada."
+                )
+
+                st.rerun()
 
         st.divider()
 
-        if st.session_state.calificaciones_cuatrimestre:
+        if (
+            st.session_state
+            .calificaciones_cuatrimestre
+        ):
 
             datos = []
 
             for registro in (
-                st.session_state.calificaciones_cuatrimestre
+                st.session_state
+                .calificaciones_cuatrimestre
             ):
 
                 alumno = next(
                     (
                         a
-                        for a in st.session_state.alumnos
-                        if a["id"] == registro["alumno_id"]
+                        for a in (
+                            st.session_state.alumnos
+                        )
+                        if a["id"]
+                        == registro["alumno_id"]
                     ),
                     None
                 )
@@ -2103,15 +2993,22 @@ elif opcion == "📝 Calificaciones":
                         {
                             "Curso - Materia":
                                 obtener_nombre_asignacion(
-                                    registro["asignacion_id"]
+                                    registro[
+                                        "asignacion_id"
+                                    ]
                                 ),
-                            "Alumno": alumno_nombre,
+                            "Alumno":
+                                alumno_nombre,
                             "Cuatrimestre":
                                 registro["cuatrimestre"],
                             "Conceptual":
-                                registro["nota_conceptual"],
+                                registro[
+                                    "nota_conceptual"
+                                ],
                             "Numérica":
-                                registro["nota_numerica"]
+                                registro[
+                                    "nota_numerica"
+                                ]
                         }
                     )
 
@@ -2142,13 +3039,20 @@ elif opcion == "📝 Calificaciones":
 
             asignacion_id = st.selectbox(
                 "Curso y materia",
-                list(asignaciones_opciones.keys()),
-                format_func=lambda x: asignaciones_opciones[x],
+                list(
+                    asignaciones_opciones.keys()
+                ),
+                format_func=(
+                    lambda x:
+                    asignaciones_opciones[x]
+                ),
                 key="final_asignacion"
             )
 
-            alumnos_asignacion = obtener_alumnos_asignacion(
-                asignacion_id
+            alumnos_asignacion = (
+                obtener_alumnos_asignacion(
+                    asignacion_id
+                )
             )
 
             datos = []
@@ -2194,11 +3098,16 @@ elif opcion == "📝 Calificaciones":
 
                 datos.append(
                     {
-                        "Apellido": alumno["apellido"],
-                        "Nombre": alumno["nombre"],
-                        "1° cuatrimestre": nota1,
-                        "2° cuatrimestre": nota2,
-                        "Nota final": final
+                        "Apellido":
+                            alumno["apellido"],
+                        "Nombre":
+                            alumno["nombre"],
+                        "1° cuatrimestre":
+                            nota1,
+                        "2° cuatrimestre":
+                            nota2,
+                        "Nota final":
+                            final
                     }
                 )
 
@@ -2226,22 +3135,6 @@ elif opcion == "📋 Observaciones":
         """
     )
 
-    st.subheader(
-        "Próxima etapa"
-    )
-
-    st.write(
-        """
-        Las observaciones podrán asociarse a:
-
-        - alumno
-        - curso y materia
-        - fecha
-        - tipo de observación
-        - descripción
-        """
-    )
-
 
 # ============================================================
 # ESTADÍSTICAS
@@ -2251,108 +3144,10 @@ elif opcion == "📊 Estadísticas":
 
     st.title("📊 Estadísticas")
 
-    st.subheader(
-        "Resumen general"
+    st.info(
+        """
+        Este módulo se desarrollará posteriormente,
+        una vez terminada la integración entre calendario,
+        horarios, asistencia y calificaciones.
+        """
     )
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric(
-        "Cursos",
-        len(st.session_state.cursos)
-    )
-
-    col2.metric(
-        "Materias",
-        len(st.session_state.materias)
-    )
-
-    col3.metric(
-        "Alumnos",
-        len(st.session_state.alumnos)
-    )
-
-    col4.metric(
-        "Registros de asistencia",
-        len(st.session_state.asistencias)
-    )
-
-    st.divider()
-
-    st.subheader(
-        "Asistencia por curso y materia"
-    )
-
-    if st.session_state.asignaciones:
-
-        datos = []
-
-        for asignacion in st.session_state.asignaciones:
-
-            alumnos_asignacion = (
-                obtener_alumnos_asignacion(
-                    asignacion["id"]
-                )
-            )
-
-            porcentajes = []
-
-            for alumno in alumnos_asignacion:
-
-                registros = [
-                    r
-                    for r in st.session_state.asistencias
-                    if r["alumno_id"] == alumno["id"]
-                    and r["asignacion_id"]
-                    == asignacion["id"]
-                ]
-
-                if registros:
-
-                    porcentaje = (
-                        calcular_porcentaje_asistencia(
-                            alumno["id"],
-                            asignacion["id"]
-                        )
-                    )
-
-                    porcentajes.append(
-                        porcentaje
-                    )
-
-            if porcentajes:
-
-                promedio = round(
-                    sum(porcentajes)
-                    / len(porcentajes),
-                    1
-                )
-
-            else:
-
-                promedio = 0
-
-            datos.append(
-                {
-                    "Curso - Materia":
-                        obtener_nombre_asignacion(
-                            asignacion["id"]
-                        ),
-                    "Cantidad de alumnos":
-                        len(alumnos_asignacion),
-                    "Asistencia promedio":
-                        f"{promedio}%"
-                }
-            )
-
-        st.dataframe(
-            pd.DataFrame(datos),
-            use_container_width=True,
-            hide_index=True
-        )
-
-    else:
-
-        st.info(
-            "No hay asignaciones registradas."
-        )
