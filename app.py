@@ -10,6 +10,21 @@ from data.datos_prueba import asignaciones as asignaciones_iniciales
 from data.datos_prueba import cursos as cursos_iniciales
 from data.datos_prueba import materias as materias_iniciales
 
+from io import BytesIO
+
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
+
 st.set_page_config(page_title="Aula360", page_icon="📚", layout="wide")
 
 MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -18,6 +33,453 @@ TIPOS_EVENTO = ["Feriado", "Conmemoración", "Receso", "Sin actividad escolar", 
 TIPOS_EVALUACION = ["Evaluación escrita", "Evaluación oral", "Trabajo práctico individual", "Trabajo práctico grupal", "Revisión de carpeta"]
 CONCEPTUALES = ["Sin registrar", "Excelente", "Muy Bueno", "Bueno", "Regular", "En proceso"]
 
+def obtener_alertas_alumno(alumno_id, asignacion_id):
+    alertas = []
+
+    porcentaje = porcentaje_asistencia(alumno_id, asignacion_id)
+
+    # Alerta de asistencia
+    registros = [
+        x for x in st.session_state.asistencias
+        if x["alumno_id"] == alumno_id
+        and x["asignacion_id"] == asignacion_id
+    ]
+
+    if registros and porcentaje < 80:
+        alertas.append({
+            "tipo": "Asistencia",
+            "nivel": "Alta",
+            "mensaje": f"Porcentaje de asistencia: {porcentaje}%."
+        })
+
+    elif registros and porcentaje < 85:
+        alertas.append({
+            "tipo": "Asistencia",
+            "nivel": "Seguimiento",
+            "mensaje": f"Porcentaje de asistencia: {porcentaje}%."
+        })
+
+    # Calificaciones
+    notas = []
+
+    for cuatri in [1, 2]:
+        registro = calificacion_cuatri(
+            alumno_id,
+            asignacion_id,
+            cuatri
+        )
+
+        if registro and registro["nota_numerica"] is not None:
+            notas.append(registro["nota_numerica"])
+
+    if notas:
+        promedio = round(sum(notas) / len(notas), 2)
+
+        if promedio < 6:
+            alertas.append({
+                "tipo": "Rendimiento",
+                "nivel": "Alta",
+                "mensaje": f"Promedio actual: {promedio}."
+            })
+
+        elif promedio < 7:
+            alertas.append({
+                "tipo": "Rendimiento",
+                "nivel": "Seguimiento",
+                "mensaje": f"Promedio actual: {promedio}."
+            })
+
+    # Evaluaciones pendientes
+    evaluaciones = [
+        x for x in st.session_state.evaluaciones
+        if x["alumno_id"] == alumno_id
+        and x["asignacion_id"] == asignacion_id
+    ]
+
+    if evaluaciones:
+        pendientes = [
+            x for x in evaluaciones
+            if x["resultado"] is None
+        ]
+
+        if pendientes:
+            alertas.append({
+                "tipo": "Evaluaciones",
+                "nivel": "Seguimiento",
+                "mensaje": f"Tiene {len(pendientes)} evaluación/es pendiente/s."
+            })
+
+    # Carpeta incompleta
+    carpetas = [
+        x for x in evaluaciones
+        if x["tipo"] == "Revisión de carpeta"
+    ]
+
+    if carpetas:
+        incompletas = [
+            x for x in carpetas
+            if x["resultado"] == "Incompleta"
+        ]
+
+        if incompletas:
+            alertas.append({
+                "tipo": "Carpeta",
+                "nivel": "Seguimiento",
+                "mensaje": "Registra carpeta incompleta."
+            })
+
+    return alertas
+
+
+def obtener_estado_alumno(alumno_id, asignacion_id):
+    alertas = obtener_alertas_alumno(
+        alumno_id,
+        asignacion_id
+    )
+
+    if any(x["nivel"] == "Alta" for x in alertas):
+        return "Requiere atención"
+
+    if alertas:
+        return "En seguimiento"
+
+    return "Sin alertas"
+
+
+def generar_pdf_alumno(alumno_id, asignacion_id):
+    alumno = next(
+        x for x in st.session_state.alumnos
+        if x["id"] == alumno_id
+    )
+
+    nombre_alumno = alumno_nombre(alumno_id)
+    nombre_asignacion = asignacion_nombre(asignacion_id)
+
+    buffer = BytesIO()
+
+    documento = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1.5 * cm,
+        leftMargin=1.5 * cm,
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm,
+    )
+
+    estilos = getSampleStyleSheet()
+
+    titulo = ParagraphStyle(
+        "TituloAula360",
+        parent=estilos["Title"],
+        alignment=TA_CENTER,
+        spaceAfter=15,
+    )
+
+    subtitulo = ParagraphStyle(
+        "SubtituloAula360",
+        parent=estilos["Heading2"],
+        spaceBefore=10,
+        spaceAfter=8,
+    )
+
+    elementos = []
+
+    elementos.append(
+        Paragraph(
+            "Aula360",
+            titulo
+        )
+    )
+
+    elementos.append(
+        Paragraph(
+            "Informe individual de seguimiento",
+            subtitulo
+        )
+    )
+
+    datos_alumno = [
+        ["Alumno", nombre_alumno],
+        ["Curso y materia", nombre_asignacion],
+        ["Fecha del informe", date.today().strftime("%d/%m/%Y")],
+    ]
+
+    tabla = Table(
+        datos_alumno,
+        colWidths=[5 * cm, 11 * cm]
+    )
+
+    tabla.setStyle(
+        TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ])
+    )
+
+    elementos.append(tabla)
+    elementos.append(Spacer(1, 15))
+
+    # ASISTENCIA
+    elementos.append(
+        Paragraph(
+            "1. Asistencia",
+            subtitulo
+        )
+    )
+
+    registros = [
+        x for x in st.session_state.asistencias
+        if x["alumno_id"] == alumno_id
+        and x["asignacion_id"] == asignacion_id
+    ]
+
+    presentes = sum(
+        1 for x in registros
+        if x["estado"] == "presente"
+    )
+
+    ausentes = sum(
+        1 for x in registros
+        if x["estado"] == "ausente"
+    )
+
+    justificados = sum(
+        1 for x in registros
+        if x["estado"] == "justificado"
+    )
+
+    porcentaje = porcentaje_asistencia(
+        alumno_id,
+        asignacion_id
+    )
+
+    datos_asistencia = [
+        ["Registros", str(len(registros))],
+        ["Presentes", str(presentes)],
+        ["Ausentes", str(ausentes)],
+        ["Justificados", str(justificados)],
+        ["Porcentaje de asistencia", f"{porcentaje}%"],
+    ]
+
+    tabla = Table(
+        datos_asistencia,
+        colWidths=[8 * cm, 8 * cm]
+    )
+
+    tabla.setStyle(
+        TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
+        ])
+    )
+
+    elementos.append(tabla)
+
+    # EVALUACIONES
+    elementos.append(
+        Paragraph(
+            "2. Evaluaciones",
+            subtitulo
+        )
+    )
+
+    evaluaciones = [
+        x for x in st.session_state.evaluaciones
+        if x["alumno_id"] == alumno_id
+        and x["asignacion_id"] == asignacion_id
+    ]
+
+    datos_evaluaciones = [
+        ["Fecha", "Tipo", "Evaluación", "Resultado"]
+    ]
+
+    for evaluacion in evaluaciones:
+        resultado = evaluacion["resultado"]
+
+        if resultado is None:
+            resultado = "Pendiente"
+
+        datos_evaluaciones.append([
+            fecha_texto(evaluacion["fecha"]),
+            evaluacion["tipo"],
+            evaluacion["nombre"],
+            str(resultado),
+        ])
+
+    if len(datos_evaluaciones) == 1:
+        datos_evaluaciones.append([
+            "-",
+            "-",
+            "Sin evaluaciones registradas",
+            "-"
+        ])
+
+    tabla = Table(
+        datos_evaluaciones,
+        colWidths=[2.5 * cm, 4 * cm, 6 * cm, 3 * cm]
+    )
+
+    tabla.setStyle(
+        TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ])
+    )
+
+    elementos.append(tabla)
+
+    # CUATRIMESTRES
+    elementos.append(
+        Paragraph(
+            "3. Calificaciones cuatrimestrales",
+            subtitulo
+        )
+    )
+
+    datos_cuatri = [
+        ["Cuatrimestre", "Conceptual", "Numérica"]
+    ]
+
+    for cuatri in [1, 2]:
+        registro = calificacion_cuatri(
+            alumno_id,
+            asignacion_id,
+            cuatri
+        )
+
+        if registro:
+            conceptual = registro["nota_conceptual"]
+            numerica = registro["nota_numerica"]
+
+            if numerica is None:
+                numerica = "Pendiente"
+        else:
+            conceptual = "Sin registrar"
+            numerica = "Pendiente"
+
+        datos_cuatri.append([
+            f"{cuatri}° cuatrimestre",
+            conceptual,
+            str(numerica),
+        ])
+
+    final = nota_final(
+        alumno_id,
+        asignacion_id
+    )
+
+    datos_cuatri.append([
+        "Nota final",
+        "",
+        str(final) if final is not None else "Pendiente"
+    ])
+
+    tabla = Table(
+        datos_cuatri,
+        colWidths=[6 * cm, 5 * cm, 5 * cm]
+    )
+
+    tabla.setStyle(
+        TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ])
+    )
+
+    elementos.append(tabla)
+
+    # OBSERVACIONES
+    elementos.append(
+        Paragraph(
+            "4. Observaciones",
+            subtitulo
+        )
+    )
+
+    observaciones = [
+        x for x in st.session_state.observaciones
+        if x["alumno_id"] == alumno_id
+        and x["asignacion_id"] == asignacion_id
+    ]
+
+    if observaciones:
+        for observacion in observaciones:
+            texto = (
+                f"<b>{fecha_texto(observacion['fecha'])}</b>: "
+                f"{observacion['observacion']}"
+            )
+
+            elementos.append(
+                Paragraph(
+                    texto,
+                    estilos["BodyText"]
+                )
+            )
+
+            elementos.append(
+                Spacer(1, 5)
+            )
+    else:
+        elementos.append(
+            Paragraph(
+                "No se registran observaciones.",
+                estilos["BodyText"]
+            )
+        )
+
+    # ALERTAS
+    elementos.append(
+        Paragraph(
+            "5. Alertas de seguimiento",
+            subtitulo
+        )
+    )
+
+    alertas = obtener_alertas_alumno(
+        alumno_id,
+        asignacion_id
+    )
+
+    if alertas:
+        for alerta in alertas:
+            elementos.append(
+                Paragraph(
+                    f"<b>{alerta['tipo']} - "
+                    f"{alerta['nivel']}</b>: "
+                    f"{alerta['mensaje']}",
+                    estilos["BodyText"]
+                )
+            )
+
+            elementos.append(
+                Spacer(1, 5)
+            )
+    else:
+        elementos.append(
+            Paragraph(
+                "No se registran alertas de seguimiento.",
+                estilos["BodyText"]
+            )
+        )
+
+    elementos.append(
+        Spacer(1, 25)
+    )
+
+    elementos.append(
+        Paragraph(
+            "Firma docente: ________________________________",
+            estilos["BodyText"]
+        )
+    )
+
+    documento.build(elementos)
+
+    buffer.seek(0)
+
+    return buffer.getvalue()
 
 def inicializar():
     datos = {
@@ -600,14 +1062,627 @@ elif modulo == "📋 Observaciones":
             st.dataframe(pd.DataFrame(datos), use_container_width=True, hide_index=True)
 
 # ESTADÍSTICAS
+# INFORMES Y SEGUIMIENTO
 elif modulo == "📊 Estadísticas":
-    st.subheader("📊 Estadísticas")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Cursos", len(st.session_state.cursos))
-    c2.metric("Asignaciones", len(st.session_state.asignaciones))
-    c3.metric("Alumnos", len(st.session_state.alumnos))
-    c4.metric("Evaluaciones", len(st.session_state.evaluaciones))
-    if st.session_state.asignaciones:
-        aid = st.selectbox("Curso y materia", [x["id"] for x in st.session_state.asignaciones], format_func=asignacion_nombre)
-        datos = [{"Alumno": alumno_nombre(x["id"]), "Asistencia": str(porcentaje_asistencia(x["id"], aid)) + "%"} for x in alumnos_asignacion(aid)]
-        st.dataframe(pd.DataFrame(datos), use_container_width=True, hide_index=True)
+
+    st.subheader("📊 Informes y seguimiento")
+
+    if not st.session_state.asignaciones:
+
+        st.warning(
+            "No hay cursos y materias registrados."
+        )
+
+    else:
+
+        pestaña_individual, pestaña_curso, pestaña_alertas = st.tabs([
+            "👤 Informe individual",
+            "📊 Informe general",
+            "⚠️ Alertas"
+        ])
+
+        # =====================================================
+        # INFORME INDIVIDUAL
+        # =====================================================
+
+        with pestaña_individual:
+
+            st.markdown(
+                "### 👤 Informe individual del alumno"
+            )
+
+            aid = st.selectbox(
+                "Curso y materia",
+                [
+                    x["id"]
+                    for x in st.session_state.asignaciones
+                ],
+                format_func=asignacion_nombre,
+                key="informe_individual_asignacion"
+            )
+
+            alumnos = alumnos_asignacion(aid)
+
+            if not alumnos:
+
+                st.info(
+                    "No hay alumnos registrados en esta asignación."
+                )
+
+            else:
+
+                alumno_id = st.selectbox(
+                    "Alumno",
+                    [
+                        x["id"]
+                        for x in alumnos
+                    ],
+                    format_func=alumno_nombre,
+                    key="informe_individual_alumno"
+                )
+
+                alumno = next(
+                    x for x in alumnos
+                    if x["id"] == alumno_id
+                )
+
+                st.divider()
+
+                col1, col2, col3, col4 = st.columns(4)
+
+                porcentaje = porcentaje_asistencia(
+                    alumno_id,
+                    aid
+                )
+
+                nf = nota_final(
+                    alumno_id,
+                    aid
+                )
+
+                alertas = obtener_alertas_alumno(
+                    alumno_id,
+                    aid
+                )
+
+                registros = [
+                    x for x in st.session_state.asistencias
+                    if x["alumno_id"] == alumno_id
+                    and x["asignacion_id"] == aid
+                ]
+
+                col1.metric(
+                    "Asistencia",
+                    f"{porcentaje}%"
+                )
+
+                col2.metric(
+                    "Registros de asistencia",
+                    len(registros)
+                )
+
+                col3.metric(
+                    "Nota final",
+                    nf if nf is not None else "Pendiente"
+                )
+
+                col4.metric(
+                    "Alertas",
+                    len(alertas)
+                )
+
+                st.markdown("### 📅 Asistencia")
+
+                presentes = sum(
+                    1 for x in registros
+                    if x["estado"] == "presente"
+                )
+
+                ausentes = sum(
+                    1 for x in registros
+                    if x["estado"] == "ausente"
+                )
+
+                justificados = sum(
+                    1 for x in registros
+                    if x["estado"] == "justificado"
+                )
+
+                datos_asistencia = {
+                    "Presentes": presentes,
+                    "Ausentes": ausentes,
+                    "Justificados": justificados
+                }
+
+                st.dataframe(
+                    pd.DataFrame(
+                        [
+                            {
+                                "Presente": presentes,
+                                "Ausente": ausentes,
+                                "Justificado": justificados,
+                                "Porcentaje": f"{porcentaje}%"
+                            }
+                        ]
+                    ),
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                st.markdown("### 📝 Calificaciones")
+
+                datos_notas = []
+
+                for cuatri in [1, 2]:
+
+                    registro = calificacion_cuatri(
+                        alumno_id,
+                        aid,
+                        cuatri
+                    )
+
+                    if registro:
+
+                        datos_notas.append({
+                            "Cuatrimestre": f"{cuatri}°",
+                            "Conceptual": registro[
+                                "nota_conceptual"
+                            ],
+                            "Numérica": (
+                                registro["nota_numerica"]
+                                if registro["nota_numerica"]
+                                is not None
+                                else "Pendiente"
+                            )
+                        })
+
+                    else:
+
+                        datos_notas.append({
+                            "Cuatrimestre": f"{cuatri}°",
+                            "Conceptual": "Sin registrar",
+                            "Numérica": "Pendiente"
+                        })
+
+                datos_notas.append({
+                    "Cuatrimestre": "Final",
+                    "Conceptual": "",
+                    "Numérica": (
+                        nf
+                        if nf is not None
+                        else "Pendiente"
+                    )
+                })
+
+                st.dataframe(
+                    pd.DataFrame(datos_notas),
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                st.markdown("### 📚 Evaluaciones")
+
+                evaluaciones = [
+                    x
+                    for x in st.session_state.evaluaciones
+                    if x["alumno_id"] == alumno_id
+                    and x["asignacion_id"] == aid
+                ]
+
+                if evaluaciones:
+
+                    datos_evaluaciones = []
+
+                    for x in evaluaciones:
+
+                        resultado = x["resultado"]
+
+                        if resultado is None:
+                            resultado = "Pendiente"
+
+                        datos_evaluaciones.append({
+                            "Fecha": fecha_texto(
+                                x["fecha"]
+                            ),
+                            "Tipo": x["tipo"],
+                            "Evaluación": x["nombre"],
+                            "Resultado": resultado
+                        })
+
+                    st.dataframe(
+                        pd.DataFrame(datos_evaluaciones),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                else:
+
+                    st.info(
+                        "No hay evaluaciones registradas."
+                    )
+
+                st.markdown("### 📋 Observaciones")
+
+                observaciones = [
+                    x
+                    for x in st.session_state.observaciones
+                    if x["alumno_id"] == alumno_id
+                    and x["asignacion_id"] == aid
+                ]
+
+                if observaciones:
+
+                    for x in observaciones:
+
+                        st.write(
+                            f"**{fecha_texto(x['fecha'])}:** "
+                            f"{x['observacion']}"
+                        )
+
+                else:
+
+                    st.info(
+                        "No hay observaciones registradas."
+                    )
+
+                st.markdown("### ⚠️ Seguimiento")
+
+                if alertas:
+
+                    for alerta in alertas:
+
+                        if alerta["nivel"] == "Alta":
+
+                            st.error(
+                                f"**{alerta['tipo']}** — "
+                                f"{alerta['mensaje']}"
+                            )
+
+                        else:
+
+                            st.warning(
+                                f"**{alerta['tipo']}** — "
+                                f"{alerta['mensaje']}"
+                            )
+
+                else:
+
+                    st.success(
+                        "No se detectaron alertas de seguimiento."
+                    )
+
+                st.divider()
+
+                pdf = generar_pdf_alumno(
+                    alumno_id,
+                    aid
+                )
+
+                nombre_pdf = (
+                    "informe_"
+                    + alumno["apellido"].replace(" ", "_")
+                    + "_"
+                    + alumno["nombre"].replace(" ", "_")
+                    + ".pdf"
+                )
+
+                st.download_button(
+                    label="📥 Descargar informe individual PDF",
+                    data=pdf,
+                    file_name=nombre_pdf,
+                    mime="application/pdf"
+                )
+
+        # =====================================================
+        # INFORME GENERAL
+        # =====================================================
+
+        with pestaña_curso:
+
+            st.markdown(
+                "### 📊 Informe general del curso"
+            )
+
+            aid = st.selectbox(
+                "Curso y materia",
+                [
+                    x["id"]
+                    for x in st.session_state.asignaciones
+                ],
+                format_func=asignacion_nombre,
+                key="informe_general_asignacion"
+            )
+
+            alumnos = alumnos_asignacion(aid)
+
+            if not alumnos:
+
+                st.info(
+                    "No hay alumnos registrados."
+                )
+
+            else:
+
+                porcentajes = [
+                    porcentaje_asistencia(
+                        x["id"],
+                        aid
+                    )
+                    for x in alumnos
+                    if porcentaje_asistencia(
+                        x["id"],
+                        aid
+                    ) > 0
+                ]
+
+                asistencia_promedio = (
+                    round(
+                        sum(porcentajes)
+                        / len(porcentajes),
+                        1
+                    )
+                    if porcentajes
+                    else 0
+                )
+
+                notas = []
+
+                for alumno in alumnos:
+
+                    nf = nota_final(
+                        alumno["id"],
+                        aid
+                    )
+
+                    if nf is not None:
+                        notas.append(nf)
+
+                promedio_general = (
+                    round(
+                        sum(notas)
+                        / len(notas),
+                        2
+                    )
+                    if notas
+                    else 0
+                )
+
+                cantidad_alertas = 0
+                alumnos_atencion = 0
+
+                for alumno in alumnos:
+
+                    alertas = obtener_alertas_alumno(
+                        alumno["id"],
+                        aid
+                    )
+
+                    cantidad_alertas += len(alertas)
+
+                    if any(
+                        x["nivel"] == "Alta"
+                        for x in alertas
+                    ):
+                        alumnos_atencion += 1
+
+                c1, c2, c3, c4 = st.columns(4)
+
+                c1.metric(
+                    "Alumnos",
+                    len(alumnos)
+                )
+
+                c2.metric(
+                    "Asistencia promedio",
+                    f"{asistencia_promedio}%"
+                )
+
+                c3.metric(
+                    "Promedio de notas",
+                    promedio_general
+                    if notas
+                    else "Sin datos"
+                )
+
+                c4.metric(
+                    "Requieren atención",
+                    alumnos_atencion
+                )
+
+                st.divider()
+
+                st.markdown(
+                    "### 📋 Situación de los alumnos"
+                )
+
+                datos = []
+
+                for alumno in alumnos:
+
+                    porcentaje = porcentaje_asistencia(
+                        alumno["id"],
+                        aid
+                    )
+
+                    nf = nota_final(
+                        alumno["id"],
+                        aid
+                    )
+
+                    alertas = obtener_alertas_alumno(
+                        alumno["id"],
+                        aid
+                    )
+
+                    if any(
+                        x["nivel"] == "Alta"
+                        for x in alertas
+                    ):
+                        estado = "🔴 Requiere atención"
+
+                    elif alertas:
+                        estado = "🟡 En seguimiento"
+
+                    else:
+                        estado = "🟢 Sin alertas"
+
+                    datos.append({
+                        "Alumno": alumno_nombre(
+                            alumno["id"]
+                        ),
+                        "Asistencia": (
+                            f"{porcentaje}%"
+                            if porcentaje > 0
+                            else "Sin registros"
+                        ),
+                        "Nota final": (
+                            nf
+                            if nf is not None
+                            else "Pendiente"
+                        ),
+                        "Alertas": len(alertas),
+                        "Estado": estado
+                    })
+
+                df_curso = pd.DataFrame(datos)
+
+                st.dataframe(
+                    df_curso,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                st.markdown(
+                    "### 📈 Distribución de situaciones"
+                )
+
+                distribucion = {
+                    "Requiere atención": 0,
+                    "En seguimiento": 0,
+                    "Sin alertas": 0
+                }
+
+                for alumno in alumnos:
+
+                    estado = obtener_estado_alumno(
+                        alumno["id"],
+                        aid
+                    )
+
+                    if estado == "Requiere atención":
+                        distribucion[
+                            "Requiere atención"
+                        ] += 1
+
+                    elif estado == "En seguimiento":
+                        distribucion[
+                            "En seguimiento"
+                        ] += 1
+
+                    else:
+                        distribucion[
+                            "Sin alertas"
+                        ] += 1
+
+                st.bar_chart(
+                    pd.DataFrame(
+                        {
+                            "Cantidad de alumnos":
+                                distribucion
+                        }
+                    )
+                )
+
+        # =====================================================
+        # ALERTAS
+        # =====================================================
+
+        with pestaña_alertas:
+
+            st.markdown(
+                "### ⚠️ Alertas de seguimiento"
+            )
+
+            aid = st.selectbox(
+                "Curso y materia",
+                [
+                    x["id"]
+                    for x in st.session_state.asignaciones
+                ],
+                format_func=asignacion_nombre,
+                key="alertas_asignacion"
+            )
+
+            alumnos = alumnos_asignacion(aid)
+
+            todas_alertas = []
+
+            for alumno in alumnos:
+
+                alertas = obtener_alertas_alumno(
+                    alumno["id"],
+                    aid
+                )
+
+                for alerta in alertas:
+
+                    todas_alertas.append({
+                        "Alumno": alumno_nombre(
+                            alumno["id"]
+                        ),
+                        "Tipo": alerta["tipo"],
+                        "Nivel": alerta["nivel"],
+                        "Situación": alerta["mensaje"]
+                    })
+
+            if not todas_alertas:
+
+                st.success(
+                    "No hay alertas registradas."
+                )
+
+            else:
+
+                st.write(
+                    f"Se detectaron "
+                    f"**{len(todas_alertas)}** "
+                    f"situaciones para seguimiento."
+                )
+
+                df_alertas = pd.DataFrame(
+                    todas_alertas
+                )
+
+                st.dataframe(
+                    df_alertas,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                st.divider()
+
+                st.markdown(
+                    "### 🔴 Alertas que requieren atención"
+                )
+
+                alertas_altas = [
+                    x
+                    for x in todas_alertas
+                    if x["Nivel"] == "Alta"
+                ]
+
+                if alertas_altas:
+
+                    for alerta in alertas_altas:
+
+                        st.error(
+                            f"**{alerta['Alumno']}** — "
+                            f"{alerta['Tipo']}: "
+                            f"{alerta['Situación']}"
+                        )
+
+                else:
+
+                    st.success(
+                        "No hay alertas de nivel alto."
+                    )
