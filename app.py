@@ -4,6 +4,7 @@ from io import BytesIO
 
 import pandas as pd
 import streamlit as st
+import os
 
 from data.datos_prueba import alumnos as alumnos_iniciales
 from data.datos_prueba import asistencias as asistencias_iniciales
@@ -16,7 +17,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 
 
 st.set_page_config(page_title="Aula360", page_icon="📚", layout="wide")
