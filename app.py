@@ -486,6 +486,92 @@ def hay_suspension(fecha, aid):
 
 
 # ============================================================
+# ENCABEZADO DEL PDF
+# ============================================================
+
+def encabezado_pdf(canvas, documento):
+    canvas.saveState()
+
+    ancho, alto = A4
+
+    ruta_logo = "assets/logo_escuela.png"
+
+    # --------------------------------------------------------
+    # LOGO
+    # --------------------------------------------------------
+
+    if os.path.exists(ruta_logo):
+
+        canvas.drawImage(
+            ruta_logo,
+            1.5 * cm,
+            alto - 2.7 * cm,
+            width=2.2 * cm,
+            height=2.2 * cm,
+            preserveAspectRatio=True,
+            mask="auto",
+        )
+
+    # --------------------------------------------------------
+    # NOMBRE DE LA ESCUELA
+    # --------------------------------------------------------
+
+    canvas.setFont("Helvetica-Bold", 13)
+
+    canvas.drawString(
+        4.2 * cm,
+        alto - 1.2 * cm,
+        "ESCUELA TÉCNICA N° 2"
+    )
+
+    # --------------------------------------------------------
+    # TÍTULO DEL INFORME
+    # --------------------------------------------------------
+
+    canvas.setFont("Helvetica", 10)
+
+    canvas.drawString(
+        4.2 * cm,
+        alto - 1.8 * cm,
+        "Informe individual de seguimiento"
+    )
+
+    canvas.setFont("Helvetica", 8)
+
+    canvas.drawString(
+        4.2 * cm,
+        alto - 2.25 * cm,
+        "Sistema de gestión y seguimiento docente - Aula360"
+    )
+
+    # --------------------------------------------------------
+    # LÍNEA SEPARADORA
+    # --------------------------------------------------------
+
+    canvas.setLineWidth(0.8)
+
+    canvas.line(
+        1.5 * cm,
+        alto - 3.0 * cm,
+        ancho - 1.5 * cm,
+        alto - 3.0 * cm
+    )
+
+    # --------------------------------------------------------
+    # NÚMERO DE PÁGINA
+    # --------------------------------------------------------
+
+    canvas.setFont("Helvetica", 8)
+
+    canvas.drawRightString(
+        ancho - 1.5 * cm,
+        1.0 * cm,
+        f"Página {canvas.getPageNumber()}"
+    )
+
+    canvas.restoreState()
+
+# ============================================================
 # PDF INDIVIDUAL
 # ============================================================
 
@@ -506,7 +592,7 @@ def generar_pdf_alumno(alumno_id, asignacion_id):
         pagesize=A4,
         rightMargin=1.5 * cm,
         leftMargin=1.5 * cm,
-        topMargin=1.5 * cm,
+        topMargin=3.5 * cm,
         bottomMargin=1.5 * cm,
     )
 
@@ -527,21 +613,7 @@ def generar_pdf_alumno(alumno_id, asignacion_id):
     )
 
     elementos = []
-
-    elementos.append(
-        Paragraph(
-            "Aula360",
-            titulo
-        )
-    )
-
-    elementos.append(
-        Paragraph(
-            "Informe individual de seguimiento",
-            subtitulo
-        )
-    )
-
+   
     datos_alumno = [
         ["Alumno", nombre_alumno],
         ["Curso y materia", nombre_asignacion],
@@ -860,7 +932,11 @@ def generar_pdf_alumno(alumno_id, asignacion_id):
         )
     )
 
-    documento.build(elementos)
+    documento.build(
+    elementos,
+    onFirstPage=encabezado_pdf,
+    onLaterPages=encabezado_pdf,
+    )
 
     buffer.seek(0)
 
